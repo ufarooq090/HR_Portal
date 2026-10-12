@@ -1,0 +1,30 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+*.trx
+
+# Node / frontend
+node_modules/
+dist/
+coverage/
+web/.env.local
+e2e/test-results/
+e2e/playwright-report/
+e2e/.auth/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pfx
+appsettings.*.local.json
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,43 @@
+using HrPortal.Domain.Audit;
+using HrPortal.Domain.Notifications;
+using HrPortal.Infrastructure.Audit;
+using HrPortal.Infrastructure.Notifications;
+using HrPortal.Infrastructure.Persistence;
+using HrPortal.Infrastructure.Security;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace HrPortal.Infrastructure;
+
+public static class DependencyInjection
+{
+    public const string ConnectionStringName = "HrPortal";
+
+    /// <summary>Registers persistence, audit, encryption and integrations. Requires an <c>ICurrentUser</c> registration.</summary>
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+
+        services.AddOptions<FieldEncryptionOptions>().Bind(configuration.GetSection(FieldEncryptionOptions.SectionName));
+        services.AddSingleton<IFieldEncryptor, AesGcmFieldEncryptor>();
+
+        services.AddScoped<AuditSaveChangesInterceptor>();
+        services.AddDbContext<HrPortalDbContext>((sp, options) =>
+        {
+            var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString(ConnectionStringName)
+                ?? throw new InvalidOperationException($"Connection string '{ConnectionStringName}' is not configured.");
+            options.UseNpgsql(connectionString)
+                .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
+        });
+        services.AddScoped<IAuditLog, AuditLog>();
+
+        // Microsoft Graph implementations replace these for deployed environments.
+        services.AddOptions<SmtpEmailOptions>().Bind(configuration.GetSection("Email:Smtp"));
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<ICalendarService, LoggingCalendarService>();
+
+        return services;
+    }
+}
