@@ -101,14 +101,39 @@ a `DevAuth` scheme logs in as seeded test users (one per role, both countries).
 It must be impossible to enable outside the `Development` / `Test` environments:
 fail application startup if `DevAuth` is configured in any other environment.
 
+## First-time local setup
+
+Do this once per machine. Without it, `dotnet run` fails with "Field encryption is not configured".
+The key lives only in `dotnet user-secrets` for `src/HrPortal.Api`; never put it in appsettings or any committed file.
+
+```
+docker compose up -d
+dotnet tool restore
+dotnet user-secrets set FieldEncryption:ActiveKeyId dev1 --project src/HrPortal.Api
+dotnet user-secrets set FieldEncryption:Keys:dev1 "$(openssl rand -base64 32)" --project src/HrPortal.Api   # Git Bash / WSL / macOS
+# PowerShell instead of openssl:
+#   $k = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+#   dotnet user-secrets set FieldEncryption:Keys:dev1 $k --project src/HrPortal.Api
+dotnet user-secrets list --project src/HrPortal.Api   # check both values exist
+```
+
+The key must be 32 random bytes, base64-encoded. Data encrypted with one key cannot be read with another, so if
+the local `hrportal` database was populated under a different key (another machine, a lost or regenerated
+secret), drop it and let the next `dotnet run` migrate and re-seed it:
+
+```
+docker compose exec postgres dropdb -U hrportal --force hrportal
+docker compose exec postgres createdb -U hrportal hrportal
+```
+
+E2E tests don't need this: they use a throwaway key and their own `hrportal_e2e` database.
+
 ## Commands
 
 ```
 docker compose up -d                       # postgres, azurite, mailpit (Mailpit UI: http://localhost:8025)
 dotnet tool restore                        # dotnet-ef (local tool manifest)
-# one-time: field-encryption key for local dev (never commit keys)
-dotnet user-secrets set FieldEncryption:ActiveKeyId dev1 --project src/HrPortal.Api
-dotnet user-secrets set FieldEncryption:Keys:dev1 "$(openssl rand -base64 32)" --project src/HrPortal.Api
+                                           # field-encryption key: see "First-time local setup"
 dotnet build                               # warnings are errors (Directory.Build.props)
 dotnet test
 dotnet ef migrations add <Name> -p src/HrPortal.Infrastructure -s src/HrPortal.Api
