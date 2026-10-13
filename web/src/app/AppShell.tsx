@@ -16,6 +16,9 @@ import {
 } from '@fluentui/react-components'
 import {
   BuildingBankRegular,
+  CalendarPersonRegular,
+  DismissCircleRegular,
+  PersonSearchRegular,
   DocumentAddRegular,
   FlowRegular,
   GlobeRegular,
@@ -32,7 +35,8 @@ import type { ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useMe } from '../api/queries'
 import { useAuth } from '../auth/AuthContext'
-import { canManageHrAccess, canUseRequisitions, hasAnyRole, Roles, showsSettings } from '../auth/roles'
+import { useMyInterviews } from '../api/recruiting'
+import { canManageHrAccess, canUseCandidates, canUseRequisitions, hasAnyRole, Roles, showsSettings } from '../auth/roles'
 import { NotificationBell } from './NotificationBell'
 
 const useStyles = makeStyles({
@@ -97,6 +101,7 @@ function NavItem({ to, icon, children }: { to: string; icon: ReactNode; children
 export function AppShell() {
   const styles = useStyles()
   const { data: me } = useMe()
+  const { data: myInterviews } = useMyInterviews()
   const { mode, signOut } = useAuth()
 
   return (
@@ -153,6 +158,16 @@ export function AppShell() {
             Requisitions
           </NavItem>
         )}
+        {canUseCandidates(me) && (
+          <NavItem to="/candidates" icon={<PersonSearchRegular />}>
+            Candidates
+          </NavItem>
+        )}
+        {(hasAnyRole(me, Roles.Interviewer) || (myInterviews?.length ?? 0) > 0) && (
+          <NavItem to="/interviews" icon={<CalendarPersonRegular />}>
+            My interviews
+          </NavItem>
+        )}
         {me?.isApprover && (
           <NavItem to="/approvals" icon={<TaskListLtrRegular />}>
             Approvals
@@ -181,6 +196,11 @@ export function AppShell() {
             {hasAnyRole(me, Roles.HrAdmin, Roles.HrExecutive) && (
               <NavItem to="/settings/approval-chains" icon={<FlowRegular />}>
                 Approval chains
+              </NavItem>
+            )}
+            {hasAnyRole(me, Roles.HrAdmin, Roles.HrExecutive) && (
+              <NavItem to="/settings/rejection-reasons" icon={<DismissCircleRegular />}>
+                Rejection reasons
               </NavItem>
             )}
             {canManageHrAccess(me) && (

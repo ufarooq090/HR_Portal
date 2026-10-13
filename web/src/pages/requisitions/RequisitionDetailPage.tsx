@@ -23,7 +23,7 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components'
-import { CheckmarkRegular, DismissRegular, EditRegular, SendRegular } from '@fluentui/react-icons'
+import { CheckmarkRegular, DismissRegular, EditRegular, PeopleTeamRegular, SendRegular } from '@fluentui/react-icons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
@@ -35,7 +35,9 @@ import {
   useWithdrawRequisition,
 } from '../../api/requisitions'
 import type { RequisitionDetail, RequisitionStatus } from '../../api/types'
+import { useMe } from '../../api/queries'
 import { QueryError } from '../../app/QueryError'
+import { canUseCandidates } from '../../auth/roles'
 import { TextField } from '../employees/fields'
 import { formatDate, label } from '../employees/format'
 import { budgetRange, decisionColor, requisitionStatusColor, statusActionLabel } from './requisitionFormat'
@@ -60,6 +62,7 @@ export function RequisitionDetailPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { data: r, isLoading, error } = useRequisition(id)
+  const { data: me } = useMe()
   const submit = useSubmitRequisition()
   const [pending, setPending] = useState<Pending | null>(null)
 
@@ -104,6 +107,11 @@ export function RequisitionDetailPage() {
           </Button>
         )}
         {p.canWithdraw && <Button onClick={() => setPending({ kind: 'withdraw' })}>Withdraw</Button>}
+        {canUseCandidates(me) && r.status !== 'Draft' && r.status !== 'PendingApproval' && (
+          <Button appearance="primary" icon={<PeopleTeamRegular />} onClick={() => navigate(`/requisitions/${r.id}/pipeline`)}>
+            Candidates
+          </Button>
+        )}
         {p.statusOptions.map((s) => (
           <Button key={s} onClick={() => setPending({ kind: 'status', status: s })}>
             {statusActionLabel(s)}
@@ -122,6 +130,8 @@ export function RequisitionDetailPage() {
             ['Reason', r.reason === 'Replacement' ? `Replacing ${r.replacedEmployeeName}` : 'New position'],
             ['Target date', formatDate(r.targetDate)],
             ['Requested by', r.requesterName],
+            ['Hiring manager', r.hiringManagerName],
+            ['Interview rounds', String(r.interviewRounds)],
             ['Raised', new Date(r.createdAtUtc).toLocaleDateString()],
           ] as const
         ).map(([term, value]) => (

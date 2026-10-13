@@ -38,6 +38,7 @@ public sealed class HrPortalApiFactory : WebApplicationFactory<Program>, IAsyncL
         {
             services.AddSingleton<IFileStore>(Files);
             services.AddSingleton<IEmailSender>(Emails);
+            services.AddSingleton<ICalendarService>(Calendar);
             services.AddSingleton<INotificationEmailQueue, InlineNotificationEmailQueue>();
         });
     }
@@ -45,6 +46,8 @@ public sealed class HrPortalApiFactory : WebApplicationFactory<Program>, IAsyncL
     public InMemoryFileStore Files { get; } = new();
 
     public RecordingEmailSender Emails { get; } = new();
+
+    public RecordingCalendarService Calendar { get; } = new();
 
     /// <summary>HTTP client signed in as a seeded dev user, e.g. <c>dev-pk-hradmin</c>.</summary>
     public HttpClient CreateClientAs(string devUserId)

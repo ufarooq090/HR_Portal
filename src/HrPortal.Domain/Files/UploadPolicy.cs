@@ -27,10 +27,22 @@ public static class UploadPolicy
     /// <summary>Bytes needed from the start of the file to check its signature.</summary>
     public const int HeaderLength = 8;
 
-    public static UploadedFile Validate(string? fileName, long sizeBytes, ReadOnlySpan<byte> header)
+    /// <summary>CVs (RB-01): PDF and Word only.</summary>
+    public static readonly IReadOnlySet<string> CvExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".pdf", ".doc", ".docx" };
+
+    public static UploadedFile Validate(string? fileName, long sizeBytes, ReadOnlySpan<byte> header) =>
+        Validate(fileName, sizeBytes, header, null);
+
+    /// <param name="onlyExtensions">Narrows the allowed types further, e.g. <see cref="CvExtensions"/>.</param>
+    public static UploadedFile Validate(string? fileName, long sizeBytes, ReadOnlySpan<byte> header, IReadOnlySet<string>? onlyExtensions)
     {
         var name = SafeFileName(fileName);
         var extension = Path.GetExtension(name);
+        if (onlyExtensions is not null && !onlyExtensions.Contains(extension))
+        {
+            throw new DomainValidationException("file", "Upload a PDF or Word document (DOC/DOCX).");
+        }
+
         if (!Allowed.TryGetValue(extension, out var rule))
         {
             throw new DomainValidationException("file", "Upload a PDF, Word document (DOC/DOCX), JPG or PNG.");

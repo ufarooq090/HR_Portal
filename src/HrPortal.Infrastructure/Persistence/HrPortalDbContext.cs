@@ -4,6 +4,7 @@ using HrPortal.Domain.Common;
 using HrPortal.Domain.Employees;
 using HrPortal.Domain.Notifications;
 using HrPortal.Domain.Organisation;
+using HrPortal.Domain.Recruiting;
 using HrPortal.Domain.Requisitions;
 using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Security;
@@ -47,6 +48,20 @@ public sealed class HrPortalDbContext(DbContextOptions<HrPortalDbContext> option
     public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<CandidateProfile> CandidateProfiles => Set<CandidateProfile>();
+
+    public DbSet<CandidateCv> CandidateCvs => Set<CandidateCv>();
+
+    public DbSet<RejectionReason> RejectionReasons => Set<RejectionReason>();
+
+    public DbSet<Application> Applications => Set<Application>();
+
+    public DbSet<ApplicationNote> ApplicationNotes => Set<ApplicationNote>();
+
+    public DbSet<Interview> Interviews => Set<Interview>();
+
+    public DbSet<Scorecard> Scorecards => Set<Scorecard>();
 
     /// <summary>Next requisition reference, e.g. REQ-00042, from a database sequence (no gaps in normal use, never reused).</summary>
     public async Task<string> NextRequisitionNumberAsync(CancellationToken ct)

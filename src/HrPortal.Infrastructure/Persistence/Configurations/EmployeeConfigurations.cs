@@ -16,6 +16,11 @@ internal sealed class PersonConfiguration : IEntityTypeConfiguration<Person>
         builder.Property(p => p.FamilyName).HasMaxLength(100);
         builder.Property(p => p.PersonalEmail).HasMaxLength(256);
         builder.Property(p => p.Phone).HasMaxLength(32);
+        builder.Property(p => p.PhoneKey).HasMaxLength(10);
+
+        // Duplicate detection on email and phone (CT-09).
+        builder.HasIndex(p => p.PersonalEmail);
+        builder.HasIndex(p => p.PhoneKey);
         builder.Property(p => p.AddressLine1).HasMaxLength(200);
         builder.Property(p => p.AddressLine2).HasMaxLength(200);
         builder.Property(p => p.City).HasMaxLength(100);

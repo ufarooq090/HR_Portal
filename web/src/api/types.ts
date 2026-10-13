@@ -330,6 +330,8 @@ export interface ProblemDetails {
   status?: number
   detail?: string
   errors?: Record<string, string[]>
+  /** CT-09: existing people with the same email or phone, on a 409. */
+  duplicates?: DuplicateMatch[]
 }
 
 export const requisitionStatuses = ['Draft', 'PendingApproval', 'Open', 'OnHold', 'Filled', 'Cancelled'] as const
@@ -390,6 +392,10 @@ export interface RequisitionDetail extends RequisitionSummary {
   replacedEmployeeName: string | null
   jobDescription: string
   requesterEmployeeId: string
+  hiringManagerEmployeeId: string
+  hiringManagerName: string
+  interviewRounds: number
+  scorecardCriteria: string[]
   approvals: RequisitionApproval[]
   history: RequisitionStatusChange[]
   permissions: RequisitionPermissions
@@ -407,6 +413,8 @@ export interface RequisitionRequest {
   replacedEmployeeId: string | null
   targetDate: string
   jobDescription: string
+  /** Defaults to the requester; HR can name the hiring manager who will see the candidates. */
+  hiringManagerEmployeeId?: string | null
 }
 
 export interface ApprovalChain {
@@ -427,4 +435,181 @@ export interface AppNotification {
 export interface NotificationList {
   unreadCount: number
   items: AppNotification[]
+}
+
+export const pipelineStages = ['Applied', 'Screening', 'Interview', 'Offer', 'OfferAccepted', 'Joined'] as const
+export const exitStages = ['Rejected', 'Withdrawn', 'NoShow', 'OnHold', 'OfferDeclined'] as const
+export type PipelineStage = (typeof pipelineStages)[number] | (typeof exitStages)[number]
+
+export const candidateSources = ['Portal', 'Referral', 'Agency', 'JobBoard', 'WalkIn'] as const
+export type CandidateSource = (typeof candidateSources)[number]
+export type InterviewMode = 'InPerson' | 'Teams' | 'Phone'
+export type Recommendation = 'StrongHire' | 'Hire' | 'NoHire'
+
+export interface MoneyAmount {
+  amount: number
+  currency: string
+}
+
+/** A row on the board or in the list view (CT-01). */
+export interface ApplicationCard {
+  id: string
+  personId: string
+  candidateName: string
+  email: string | null
+  currentEmployer: string | null
+  stage: PipelineStage
+  interviewRound: number | null
+  source: CandidateSource
+  appliedAtUtc: string
+  stageChangedAtUtc: string
+  requisitionId: string
+  requisitionNumber: string
+  requisitionTitle: string
+  countryCode: string
+  interviewCount: number
+}
+
+export interface Board {
+  requisitionId: string
+  number: string
+  title: string
+  status: RequisitionStatus
+  countryCode: string
+  interviewRounds: number
+  scorecardCriteria: string[]
+  canManage: boolean
+  canAddCandidates: boolean
+  applications: ApplicationCard[]
+}
+
+export interface CandidateRequest {
+  givenName: string
+  familyName: string
+  email: string | null
+  phone: string | null
+  currentEmployer: string | null
+  noticePeriodDays: number | null
+  currentCtc: MoneyAmount | null
+  expectedCtc: MoneyAmount | null
+}
+
+export interface DuplicateMatch {
+  personId: string
+  name: string
+  email: string | null
+  phone: string | null
+  matchedOnEmail: boolean
+  matchedOnPhone: boolean
+  isEmployee: boolean
+}
+
+export interface Cv {
+  id: string
+  fileName: string
+  sizeBytes: number
+  uploadedBy: string
+  uploadedAtUtc: string
+}
+
+export interface CandidateDetail {
+  personId: string
+  givenName: string
+  familyName: string
+  email: string | null
+  phone: string | null
+  currentEmployer: string | null
+  noticePeriodDays: number | null
+  currentCtc: MoneyAmount | null
+  expectedCtc: MoneyAmount | null
+  canSeeCompensation: boolean
+  canEdit: boolean
+  applications: ApplicationCard[]
+  cvs: Cv[]
+}
+
+export interface CriterionRating {
+  criterion: string
+  rating: number
+  comment: string | null
+}
+
+export interface InterviewView {
+  id: string
+  round: number
+  startUtc: string
+  durationMinutes: number
+  mode: InterviewMode
+  location: string | null
+  status: 'Scheduled' | 'Cancelled'
+  panelNames: string[]
+  criteria: string[]
+  submittedCount: number
+  isOnPanel: boolean
+  myScorecardSubmitted: boolean
+  /** The viewer is on this panel and has not submitted yet, so others' feedback is withheld (CT-07). */
+  feedbackHidden: boolean
+  scorecards: { interviewerName: string; ratings: CriterionRating[]; recommendation: Recommendation; comment: string | null; submittedAtUtc: string }[]
+}
+
+export interface ApplicationPermissions {
+  canView: boolean
+  canManage: boolean
+  canSeeCompensation: boolean
+  canSeeNotes: boolean
+  canSeeAllFeedback: boolean
+}
+
+export interface ApplicationDetail {
+  id: string
+  stage: PipelineStage
+  interviewRound: number | null
+  source: CandidateSource
+  appliedAtUtc: string
+  candidate: {
+    personId: string
+    name: string
+    email: string | null
+    phone: string | null
+    currentEmployer: string | null
+    noticePeriodDays: number | null
+    currentCtc: MoneyAmount | null
+    expectedCtc: MoneyAmount | null
+  }
+  requisition: { id: string; number: string; title: string; status: RequisitionStatus; interviewRounds: number; scorecardCriteria: string[] }
+  history: {
+    fromStage: PipelineStage | null
+    fromRound: number | null
+    toStage: PipelineStage
+    toRound: number | null
+    rejectionReason: string | null
+    reason: string | null
+    actorName: string
+    atUtc: string
+  }[]
+  notes: { id: string; body: string; authorName: string; createdAtUtc: string }[]
+  interviews: InterviewView[]
+  cvs: Cv[]
+  permissions: ApplicationPermissions
+}
+
+export interface MyInterview {
+  interviewId: string
+  applicationId: string
+  candidateName: string
+  requisitionNumber: string
+  requisitionTitle: string
+  round: number
+  startUtc: string
+  durationMinutes: number
+  mode: InterviewMode
+  location: string | null
+  scorecardSubmitted: boolean
+}
+
+export interface RejectionReason {
+  id: string
+  name: string
+  sortOrder: number
+  isActive: boolean
 }

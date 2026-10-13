@@ -7,6 +7,7 @@ import { useCountries, useMe, useOrganisationItems } from '../../api/queries'
 import { useCreateRequisition, useRequisition, useUpdateRequisition } from '../../api/requisitions'
 import type { Department, OfficeLocation, RequisitionDetail, RequisitionReason, RequisitionRequest } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
+import { canCreateEmployees } from '../../auth/roles'
 import { SelectField, TextField } from '../employees/fields'
 import { todayIso } from '../employees/format'
 
@@ -37,6 +38,7 @@ interface FormState {
   replacedEmployeeId: string
   targetDate: string
   jobDescription: string
+  hiringManagerEmployeeId: string
 }
 
 /** REQ-01: role, department, openings, budget range in local currency, reason, target date, job description. */
@@ -59,6 +61,7 @@ function RequisitionForm({ existing }: { existing: RequisitionDetail | undefined
           budgetMin: String(existing.budgetMin),
           budgetMax: String(existing.budgetMax),
           replacedEmployeeId: existing.replacedEmployeeId ?? '',
+          hiringManagerEmployeeId: existing.hiringManagerEmployeeId,
         }
       : {
           title: '',
@@ -71,11 +74,14 @@ function RequisitionForm({ existing }: { existing: RequisitionDetail | undefined
           replacedEmployeeId: '',
           targetDate: todayIso(new Date(Date.now() + 60 * 86_400_000)),
           jobDescription: '',
+          hiringManagerEmployeeId: '',
         },
   )
   // Managers can only raise for their own department, so start there.
   const departmentId = form.departmentId || (existing ? '' : (self?.departmentId ?? ''))
   const { data: people } = useEmployees({ departmentId, status: ['Probation', 'Confirmed', 'OnNotice'] })
+  const { data: everyone } = useEmployees({ status: ['Probation', 'Confirmed', 'OnNotice'] })
+  const isHr = canCreateEmployees(me)
   const office = offices?.find((o) => o.id === form.officeLocationId)
   const currency = countries?.find((c) => c.countryCode === office?.countryCode)?.currencyCode
   const apiError = mutation.error instanceof ApiError ? mutation.error : undefined
@@ -95,6 +101,7 @@ function RequisitionForm({ existing }: { existing: RequisitionDetail | undefined
       replacedEmployeeId: form.reason === 'Replacement' ? form.replacedEmployeeId || null : null,
       targetDate: form.targetDate,
       jobDescription: form.jobDescription,
+      hiringManagerEmployeeId: form.hiringManagerEmployeeId || null,
     }
     const done = (r: RequisitionDetail) => navigate(`/requisitions/${r.id}`)
     if (existing) update.mutate({ id: existing.id, body }, { onSuccess: done })
@@ -157,6 +164,17 @@ function RequisitionForm({ existing }: { existing: RequisitionDetail | undefined
                 { value: 'Replacement', label: 'Replacement' },
               ]}
             />
+            {isHr && (
+              <SelectField
+                label="Hiring manager"
+                value={form.hiringManagerEmployeeId}
+                onChange={(v) => set('hiringManagerEmployeeId', v)}
+                clearLabel="The requester"
+                options={(everyone ?? []).map((p) => ({ value: p.id, label: `${p.fullName} (${p.employeeNumber})` }))}
+                error={error('hiringManagerEmployeeId')}
+                hint="Sees this requisition's candidates."
+              />
+            )}
             {form.reason === 'Replacement' && (
               <SelectField
                 label="Replacing"

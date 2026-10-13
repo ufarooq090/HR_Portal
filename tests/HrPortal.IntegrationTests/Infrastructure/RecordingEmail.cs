@@ -29,3 +29,24 @@ public sealed class InlineNotificationEmailQueue(IServiceProvider services) : IN
         scope.ServiceProvider.GetRequiredService<NotificationEmailJob>().SendAsync(notificationId, CancellationToken.None).GetAwaiter().GetResult();
     }
 }
+
+/// <summary>Captures calendar calls; tests never reach Microsoft 365.</summary>
+public sealed class RecordingCalendarService : ICalendarService
+{
+    public ConcurrentQueue<(string EventId, CalendarEvent Event)> Created { get; } = new();
+
+    public ConcurrentQueue<string> Cancelled { get; } = new();
+
+    public Task<string> CreateEventAsync(CalendarEvent calendarEvent, CancellationToken cancellationToken = default)
+    {
+        var id = $"test-{Guid.NewGuid():N}";
+        Created.Enqueue((id, calendarEvent));
+        return Task.FromResult(id);
+    }
+
+    public Task CancelEventAsync(string organizerEmail, string eventId, CancellationToken cancellationToken = default)
+    {
+        Cancelled.Enqueue(eventId);
+        return Task.CompletedTask;
+    }
+}

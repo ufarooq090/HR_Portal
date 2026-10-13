@@ -18,6 +18,10 @@ import { ApprovalsPage } from '../pages/requisitions/ApprovalsPage'
 import { RequisitionDetailPage } from '../pages/requisitions/RequisitionDetailPage'
 import { RequisitionFormPage } from '../pages/requisitions/RequisitionFormPage'
 import { RequisitionsPage } from '../pages/requisitions/RequisitionsPage'
+import { ApplicationPage } from '../pages/recruiting/ApplicationPage'
+import { CandidatesPage, MyInterviewsPage } from '../pages/recruiting/CandidatesPage'
+import { PipelinePage } from '../pages/recruiting/PipelinePage'
+import { RejectionReasonsPage } from '../pages/recruiting/RejectionReasonsPage'
 import { AppShell } from './AppShell'
 
 export const router = createBrowserRouter([
@@ -34,6 +38,11 @@ export const router = createBrowserRouter([
       { path: 'requisitions/:id', element: <RequisitionDetailPage /> },
       { path: 'requisitions/:id/edit', element: <RequisitionFormPage /> },
       { path: 'approvals', element: <ApprovalsPage /> },
+      { path: 'requisitions/:id/pipeline', element: <PipelinePage /> },
+      { path: 'applications/:id', element: <ApplicationPage /> },
+      { path: 'candidates', element: <CandidatesPage /> },
+      { path: 'interviews', element: <MyInterviewsPage /> },
+      { path: 'settings/rejection-reasons', element: <RejectionReasonsPage /> },
       { path: 'settings/approval-chains', element: <ApprovalChainsPage /> },
       { path: 'settings/countries', element: <CountriesPage /> },
       { path: 'settings/legal-entities', element: <LegalEntitiesPage /> },

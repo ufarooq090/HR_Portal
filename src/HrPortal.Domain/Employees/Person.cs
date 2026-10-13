@@ -32,6 +32,9 @@ public sealed class Person : Entity
 
     public string? Phone { get; private set; }
 
+    /// <summary>Last ten digits of <see cref="Phone"/>, so 0300 1234567 and +92 300 1234567 match (CT-09).</summary>
+    public string? PhoneKey { get; private set; }
+
     public DateOnly? DateOfBirth { get; private set; }
 
     public string? AddressLine1 { get; private set; }
@@ -72,7 +75,7 @@ public sealed class Person : Entity
         }
 
         PersonalEmail = OptionalEmail("personalEmail", details.PersonalEmail);
-        Phone = Guard.OptionalText("phone", details.Phone, 32);
+        SetPhone(details.Phone);
         DateOfBirth = details.DateOfBirth;
         AddressLine1 = Guard.OptionalText("addressLine1", details.AddressLine1, 200);
         AddressLine2 = Guard.OptionalText("addressLine2", details.AddressLine2, 200);
@@ -86,6 +89,26 @@ public sealed class Person : Entity
 
         _emergencyContacts.Clear();
         _emergencyContacts.AddRange(details.EmergencyContacts.Select(c => new EmergencyContact(Id, c.Name, c.Relationship, c.Phone)));
+    }
+
+    /// <summary>Candidate contact details (CT-02); the rest of the personal details are left as they are.</summary>
+    public void UpdateContact(string? email, string? phone)
+    {
+        PersonalEmail = OptionalEmail("email", email);
+        SetPhone(phone);
+    }
+
+    /// <summary>Digits only, last ten; null when too short to identify anyone.</summary>
+    public static string? PhoneKeyOf(string? phone)
+    {
+        var digits = new string((phone ?? string.Empty).Where(char.IsAsciiDigit).ToArray());
+        return digits.Length < 7 ? null : digits.Length > 10 ? digits[^10..] : digits;
+    }
+
+    private void SetPhone(string? phone)
+    {
+        Phone = Guard.OptionalText("phone", phone, 32);
+        PhoneKey = PhoneKeyOf(Phone);
     }
 
     public static string RequiredEmail(string field, string? value) =>

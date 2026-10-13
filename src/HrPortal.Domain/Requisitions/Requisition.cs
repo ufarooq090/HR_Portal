@@ -40,7 +40,8 @@ public sealed record RequisitionDetails(
     RequisitionReason Reason,
     Employee? ReplacedEmployee,
     DateOnly TargetDate,
-    string JobDescription);
+    string JobDescription,
+    Employee? HiringManager = null);
 
 /// <summary>What a decision led to, so the caller knows whom to notify.</summary>
 public sealed record DecisionOutcome(bool Approved, bool Opened, RequisitionApproval? NextStep);
@@ -53,6 +54,11 @@ public sealed record DecisionOutcome(bool Approved, bool Opened, RequisitionAppr
 public sealed class Requisition : Entity
 {
     public const int MaxJobDescriptionLength = 20_000;
+    public const int DefaultInterviewRounds = 2;
+    public const int MaxInterviewRounds = 6;
+
+    public static readonly IReadOnlyList<string> DefaultScorecardCriteria =
+        ["Technical skills", "Problem solving", "Communication", "Team fit"];
 
     private readonly List<RequisitionApproval> _approvals = [];
     private readonly List<RequisitionStatusChange> _statusHistory = [];
@@ -94,6 +100,15 @@ public sealed class Requisition : Entity
 
     public Guid RequesterEmployeeId { get; private set; }
 
+    /// <summary>Owns the hiring: sees the requisition's candidates (CT). Defaults to the requester; HR can name someone else.</summary>
+    public Guid HiringManagerEmployeeId { get; private set; }
+
+    /// <summary>Interview rounds in this requisition's pipeline (Interview 1..n).</summary>
+    public int InterviewRounds { get; private set; } = DefaultInterviewRounds;
+
+    /// <summary>CT-06: what interviewers rate, 1 to 5. Copied onto each interview when it is scheduled.</summary>
+    public List<string> ScorecardCriteria { get; private set; } = [.. DefaultScorecardCriteria];
+
     /// <summary>Increments on each submission; approvals of earlier rounds are kept as history.</summary>
     public int ApprovalRound { get; private set; }
 
@@ -119,6 +134,7 @@ public sealed class Requisition : Entity
         {
             Number = Guard.RequiredText(nameof(number), number, 20),
             RequesterEmployeeId = requesterEmployeeId,
+            HiringManagerEmployeeId = requesterEmployeeId,
             Status = RequisitionStatus.Draft,
             CreatedAtUtc = now.ToUniversalTime(),
         };
@@ -238,6 +254,36 @@ public sealed class Requisition : Entity
         Transition(status, actor, now, Guard.OptionalText(nameof(comment), comment, 1000));
     }
 
+    /// <summary>
+    /// Interview rounds and scorecard criteria. <paramref name="roundsInUse"/> is the highest round that already has
+    /// candidates or interviews; the pipeline cannot shrink below it.
+    /// </summary>
+    public void ConfigurePipeline(int interviewRounds, IReadOnlyList<string> criteria, int roundsInUse)
+    {
+        if (Status is RequisitionStatus.Filled or RequisitionStatus.Cancelled)
+        {
+            throw new DomainValidationException("status", $"This requisition is {Label(Status)}.");
+        }
+
+        Guard.Range(nameof(interviewRounds), interviewRounds, 1, MaxInterviewRounds, $"Choose between 1 and {MaxInterviewRounds} interview rounds.");
+        if (interviewRounds < roundsInUse)
+        {
+            throw new DomainValidationException(nameof(interviewRounds), $"Round {roundsInUse} is already in use; keep at least {roundsInUse} rounds.");
+        }
+
+        var cleaned = criteria.Select(c => Guard.RequiredText("scorecardCriteria", c, 100)).ToList();
+        if (cleaned.Count is 0 or > 10 || cleaned.Distinct(StringComparer.OrdinalIgnoreCase).Count() != cleaned.Count)
+        {
+            throw new DomainValidationException("scorecardCriteria", "Use between 1 and 10 different criteria.");
+        }
+
+        InterviewRounds = interviewRounds;
+        ScorecardCriteria = cleaned;
+    }
+
+    /// <summary>REQ-03: candidates are only added to open positions.</summary>
+    public bool AcceptsCandidates => Status == RequisitionStatus.Open;
+
     /// <summary>Statuses reachable through <see cref="ChangeStatus"/> from the current one.</summary>
     public IReadOnlyList<RequisitionStatus> ManualNextStatuses => Status switch
     {
@@ -302,6 +348,16 @@ public sealed class Requisition : Entity
         CurrencyCode = country.CurrencyCode;
         Reason = d.Reason;
         ReplacedEmployeeId = d.ReplacedEmployee?.Id;
+        if (d.HiringManager is { } hiringManager)
+        {
+            if (!hiringManager.Status.IsActive())
+            {
+                throw new DomainValidationException("hiringManagerEmployeeId", "The hiring manager has left the company.");
+            }
+
+            HiringManagerEmployeeId = hiringManager.Id;
+        }
+
         TargetDate = d.TargetDate;
         JobDescription = Guard.RequiredText("jobDescription", d.JobDescription, MaxJobDescriptionLength);
     }

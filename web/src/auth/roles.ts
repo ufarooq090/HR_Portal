@@ -37,6 +37,11 @@ export function canUseRequisitions(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive, Roles.HiringManager, Roles.LineManager)
 }
 
+/** Candidate Tracker in the permission matrix: HR, hiring managers and interviewers. */
+export function canUseCandidates(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive, Roles.HiringManager, Roles.Interviewer)
+}
+
 /** Matches the API's ManageHrAccess policy. */
 export function canManageHrAccess(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin)

@@ -32,6 +32,9 @@ internal sealed class RequisitionConfiguration : IEntityTypeConfiguration<Requis
         builder.HasOne<CountrySettings>().WithMany().HasForeignKey(r => r.CountryCode).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Employee>().WithMany().HasForeignKey(r => r.RequesterEmployeeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Employee>().WithMany().HasForeignKey(r => r.ReplacedEmployeeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Employee>().WithMany().HasForeignKey(r => r.HiringManagerEmployeeId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(r => r.ScorecardCriteria).HasColumnType("text[]");
+        builder.HasIndex(r => r.HiringManagerEmployeeId);
 
         builder.HasMany(r => r.Approvals).WithOne().HasForeignKey(a => a.RequisitionId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(r => r.Approvals).HasField("_approvals");

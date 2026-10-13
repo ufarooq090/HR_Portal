@@ -59,6 +59,10 @@ public static class RequisitionEndpoints
         RequisitionStatus Status,
         Guid RequesterEmployeeId,
         string RequesterName,
+        Guid HiringManagerEmployeeId,
+        string HiringManagerName,
+        int InterviewRounds,
+        IReadOnlyList<string> ScorecardCriteria,
         DateTimeOffset CreatedAtUtc,
         IReadOnlyList<ApprovalDto> Approvals,
         IReadOnlyList<StatusChangeDto> History,
@@ -75,7 +79,11 @@ public static class RequisitionEndpoints
         RequisitionReason Reason,
         Guid? ReplacedEmployeeId,
         DateOnly TargetDate,
-        string JobDescription);
+        string JobDescription,
+        Guid? HiringManagerEmployeeId = null);
+
+    /// <summary>Interview rounds and scorecard criteria for the candidate pipeline (CT-01, CT-06).</summary>
+    public sealed record PipelineRequest(int InterviewRounds, IReadOnlyList<string> ScorecardCriteria);
 
     public sealed record DecisionRequest(bool Approve, string? Comment);
 
@@ -100,6 +108,7 @@ public static class RequisitionEndpoints
         group.MapPost("/{id:guid}/submit", SubmitAsync).RequireAuthorization(manage);
         group.MapPost("/{id:guid}/withdraw", WithdrawAsync).RequireAuthorization(manage);
         group.MapPost("/{id:guid}/status", ChangeStatusAsync).RequireAuthorization(manage);
+        group.MapPut("/{id:guid}/pipeline", ConfigurePipelineAsync).RequireAuthorization(Policies.Module(HrModule.Candidates, Capability.Edit));
 
         app.MapGet("/api/approvals", ApprovalsAsync).WithTags("Requisitions").RequireAuthorization(Policies.Authenticated);
         return app;
@@ -235,6 +244,29 @@ public static class RequisitionEndpoints
             return Task.FromResult<IResult?>(null);
         }, ct);
 
+    /// <summary>HR sets interview rounds and scorecard criteria; rounds already in use cannot be removed.</summary>
+    private static async Task<IResult> ConfigurePipelineAsync(
+        Guid id, PipelineRequest request, HrPortalDbContext db, IAccessContext accessContext, CancellationToken ct)
+    {
+        var access = await accessContext.GetAsync(ct);
+        var requisition = await db.Requisitions.SingleOrDefaultAsync(r => r.Id == id, ct);
+        if (requisition is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!Domain.Recruiting.RecruitingRules.IsHrFor(access, requisition.CountryCode, Capability.Edit))
+        {
+            return Results.Forbid();
+        }
+
+        var applicationRounds = await db.Applications.Where(a => a.RequisitionId == id && a.InterviewRound != null).MaxAsync(a => a.InterviewRound, ct) ?? 0;
+        var interviewRounds = await db.Interviews.Where(i => db.Applications.Any(a => a.Id == i.ApplicationId && a.RequisitionId == id)).MaxAsync(i => (int?)i.Round, ct) ?? 0;
+        requisition.ConfigurePipeline(request.InterviewRounds, request.ScorecardCriteria ?? [], Math.Max(applicationRounds, interviewRounds));
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(await DetailAsync(db, access, await LoadAsync(db, id, ct), ct));
+    }
+
     /// <summary>REQ-02: the current step's approver decides; the requester is told, and the next approver if any.</summary>
     private static async Task<IResult> DecideAsync(
         Guid id,
@@ -367,6 +399,10 @@ public static class RequisitionEndpoints
             ? await db.Employees.SingleOrDefaultAsync(e => e.Id == replacedId, ct)
                 ?? throw new DomainValidationException("replacedEmployeeId", "Choose an existing employee.")
             : null;
+        var hiringManager = request.HiringManagerEmployeeId is { } hiringManagerId
+            ? await db.Employees.SingleOrDefaultAsync(e => e.Id == hiringManagerId, ct)
+                ?? throw new DomainValidationException("hiringManagerEmployeeId", "Choose an existing employee.")
+            : null;
 
         return (new RequisitionDetails(
             request.Title,
@@ -378,7 +414,8 @@ public static class RequisitionEndpoints
             request.Reason,
             replaced,
             request.TargetDate,
-            request.JobDescription), country);
+            request.JobDescription,
+            hiringManager), country);
     }
 
     private static async Task<List<RequisitionSummary>> SummariesAsync(HrPortalDbContext db, IQueryable<Requisition> query, CancellationToken ct) =>
@@ -395,7 +432,7 @@ public static class RequisitionEndpoints
 
     private static async Task<RequisitionDetail> DetailAsync(HrPortalDbContext db, UserAccess access, Requisition r, CancellationToken ct)
     {
-        var people = new[] { r.RequesterEmployeeId }
+        var people = new[] { r.RequesterEmployeeId, r.HiringManagerEmployeeId }
             .Concat(r.ReplacedEmployeeId is { } replaced ? [replaced] : [])
             .Concat(r.Approvals.Select(a => a.ApproverEmployeeId))
             .Distinct()
@@ -410,7 +447,8 @@ public static class RequisitionEndpoints
             r.Id, r.Number, r.Title, r.DepartmentId, department, r.OfficeLocationId, office, r.CountryCode, r.Openings,
             r.BudgetMin, r.BudgetMax, r.CurrencyCode, r.Reason, r.ReplacedEmployeeId,
             r.ReplacedEmployeeId is { } replacedId ? names[replacedId] : null,
-            r.TargetDate, r.JobDescription, r.Status, r.RequesterEmployeeId, names[r.RequesterEmployeeId], r.CreatedAtUtc,
+            r.TargetDate, r.JobDescription, r.Status, r.RequesterEmployeeId, names[r.RequesterEmployeeId],
+            r.HiringManagerEmployeeId, names[r.HiringManagerEmployeeId], r.InterviewRounds, r.ScorecardCriteria, r.CreatedAtUtc,
             r.Approvals.OrderByDescending(a => a.Round).ThenBy(a => a.StepOrder)
                 .Select(a => new ApprovalDto(a.Round, a.StepOrder, a.Label, a.ApproverEmployeeId, names[a.ApproverEmployeeId], a.Decision, a.Comment, a.DecidedAtUtc))
                 .ToList(),

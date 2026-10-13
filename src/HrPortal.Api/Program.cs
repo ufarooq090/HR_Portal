@@ -6,6 +6,7 @@ using HrPortal.Api.Employees;
 using HrPortal.Api.Errors;
 using HrPortal.Api.Notifications;
 using HrPortal.Api.Organisation;
+using HrPortal.Api.Recruiting;
 using HrPortal.Api.Requisitions;
 using HrPortal.Domain.Notifications;
 using HrPortal.Infrastructure;
@@ -67,6 +68,9 @@ app.MapHrAccessEndpoints();
 app.MapRequisitionEndpoints();
 app.MapApprovalChainEndpoints();
 app.MapNotificationEndpoints();
+app.MapCandidateEndpoints();
+app.MapApplicationEndpoints();
+app.MapRejectionReasonEndpoints();
 
 await app.RunAsync();
 
