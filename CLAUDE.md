@@ -99,8 +99,12 @@ dotnet run --project src/HrPortal.Api      # Development: DevAuth on, migrations
                                            # DevAuth: send header X-Dev-User: dev-<pk|us>-<role>, e.g. dev-pk-hradmin
 cd web && npm install && npm run dev       # http://localhost:5173, proxies /api to :5195; DevAuth user picker
 cd web && npm run lint && npm test && npm run build   # oxlint, Vitest, tsc + vite build
-cd e2e && npx playwright test
+cd e2e && npm install && npx playwright install chromium   # one-time
+cd e2e && npx playwright test              # needs docker compose up; starts its own API (Test env, :5295,
+                                           # fresh hrportal_e2e DB, throwaway key) and Vite (:5273)
 ```
+
+CI (`.github/workflows/ci.yml`) runs the backend, frontend and e2e jobs on every push to main and every PR.
 
 Keep this section up to date when commands change.
 
