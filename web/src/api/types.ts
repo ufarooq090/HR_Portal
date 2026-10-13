@@ -139,12 +139,51 @@ export interface PersonalDetails {
 /** Computed by the API for the signed-in user; the UI only hides controls, the API enforces. */
 export interface EmployeePermissions {
   canEdit: boolean
+  /** Contact details, address, date of birth, emergency contacts. Includes managers for their team. */
   canViewPersonal: boolean
+  /** National ID (CNIC/SSN): HR and the employee only. */
+  canViewNationalId: boolean
   canEditPersonal: boolean
   canViewCompensation: boolean
   canEditCompensation: boolean
+  /** Documents: HR and the employee only, never managers. */
+  canViewDocuments: boolean
   canManageDocuments: boolean
   canTerminate: boolean
+}
+
+export type ScheduledChangeStatus = 'Pending' | 'Applied' | 'Cancelled' | 'Failed'
+
+/** A future-dated job or manager change; Pending shows as "Upcoming". */
+export interface ScheduledChange {
+  id: string
+  kind: JobChangeKind
+  effectiveDate: string
+  reason: string | null
+  status: ScheduledChangeStatus
+  outcome: string | null
+  designation: string | null
+  legalEntityId: string | null
+  legalEntityName: string | null
+  officeLocationId: string | null
+  officeLocationName: string | null
+  departmentId: string | null
+  departmentName: string | null
+  gradeId: string | null
+  gradeName: string | null
+  newManagerId: string | null
+  newManagerName: string | null
+}
+
+export interface UpdateScheduledChangeRequest {
+  effectiveDate: string
+  reason: string | null
+  designation: string | null
+  legalEntityId: string | null
+  officeLocationId: string | null
+  departmentId: string | null
+  gradeId: string | null
+  managerId: string | null
 }
 
 export interface EmployeeDetail {
@@ -171,7 +210,8 @@ export interface EmployeeDetail {
   joiningDate: string
   probationEndDate: string | null
   lastWorkingDate: string | null
-  personal: PersonalDetails | null
+  /** Pending and failed scheduled changes; only returned to users who can edit the record. */
+  upcoming: ScheduledChange[]
   permissions: EmployeePermissions
 }
 

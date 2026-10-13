@@ -78,10 +78,20 @@ public sealed class UserAccess
     public bool HasAny(HrModule module, Capability capability) => ScopesFor(module, capability).Count > 0;
 
     /// <summary>
-    /// Scopes for an employee's private data (personal details, national ID, emergency contacts, documents):
-    /// HR within their countries and the employee themselves. Managers' team access covers the work profile only.
+    /// Scopes for personal details (contact info, address, date of birth, emergency contacts): HR within their
+    /// countries, the employee, and managers for their direct and indirect reports (HR decision, 13 Oct 2026).
+    /// Managers' views are audited. National ID and documents use <see cref="ConfidentialDataScopesFor"/>.
     /// </summary>
     public IReadOnlySet<DataScope> PersonalDataScopesFor(Capability capability) =>
+        ScopesFor(HrModule.EmployeeRecords, capability)
+            .Where(s => s is DataScope.Own or DataScope.Team or DataScope.Countries or DataScope.All)
+            .ToHashSet();
+
+    /// <summary>
+    /// Scopes for confidential employee data (national ID, documents): HR within their countries and the employee.
+    /// Managers never get these for their team (HR decision, 13 Oct 2026).
+    /// </summary>
+    public IReadOnlySet<DataScope> ConfidentialDataScopesFor(Capability capability) =>
         ScopesFor(HrModule.EmployeeRecords, capability)
             .Where(s => s is DataScope.Own or DataScope.Countries or DataScope.All)
             .ToHashSet();

@@ -31,8 +31,9 @@ public class EmployeeRecordsTests(HrPortalApiFactory factory)
         Assert.Equal("PK", created.CountryCode);
         Assert.Equal(EmploymentStatus.Probation, created.Status);
         Assert.Equal(request.JoiningDate.AddMonths(3), created.ProbationEndDate);
-        Assert.Equal("35202-1234567-1", created.Personal!.NationalId);
-        Assert.Equal("Bilal Khan", Assert.Single(created.Personal.EmergencyContacts).Name);
+        var personal = await factory.CreateClientAs("dev-pk-hrexecutive").GetFromJsonAsync<PersonalDetailsDto>($"/api/employees/{created.Id}/personal");
+        Assert.Equal("35202-1234567-1", personal!.NationalId);
+        Assert.Equal("Bilal Khan", Assert.Single(personal.EmergencyContacts).Name);
         Assert.True(created.Permissions.CanEdit);
         Assert.False(created.Permissions.CanViewCompensation);
         Assert.False(created.Permissions.CanTerminate);
@@ -71,26 +72,74 @@ public class EmployeeRecordsTests(HrPortalApiFactory factory)
     }
 
     [Fact]
-    public async Task EMP_01_personal_details_are_shown_to_HR_and_the_employee_but_not_to_managers()
+    public async Task EMP_01_managers_see_their_teams_personal_details_but_not_the_national_id()
     {
-        var lineManagerId = await factory.EmployeeIdAsync("PK-0005");
-        var employee = await factory.CreateEmployeeAsync("PK", lineManagerId, Personal);
+        // Reports to the line manager, who reports to the hiring manager: direct and indirect.
+        var employee = await factory.CreateEmployeeAsync("PK", await factory.EmployeeIdAsync("PK-0005"), Personal);
+        string Url(Guid id) => $"/api/employees/{id}/personal";
+
+        var asManager = await factory.CreateClientAs("dev-pk-linemanager").GetFromJsonAsync<PersonalDetailsDto>(Url(employee.Id));
+        var asIndirectManager = await factory.CreateClientAs("dev-pk-hiringmanager").GetFromJsonAsync<PersonalDetailsDto>(Url(employee.Id));
+        var asHr = await factory.CreateClientAs("dev-pk-hrexecutive").GetFromJsonAsync<PersonalDetailsDto>(Url(employee.Id));
+        var self = await factory.CreateClientAs("dev-pk-employee").GetFromJsonAsync<PersonalDetailsDto>(Url(await factory.EmployeeIdAsync("PK-0006")));
+
+        Assert.Equal("ayesha.personal@mail.test", asManager!.PersonalEmail);
+        Assert.Equal(new DateOnly(1994, 3, 9), asManager.DateOfBirth);
+        Assert.Equal("12 Canal Road", asManager.AddressLine1);
+        Assert.Equal("Bilal Khan", Assert.Single(asManager.EmergencyContacts).Name);
+        Assert.Null(asManager.NationalId);
+        Assert.Null(asIndirectManager!.NationalId);
+        Assert.Equal("Lahore", asIndirectManager.City);
+        Assert.Equal("35202-1234567-1", asHr!.NationalId);
+        Assert.NotNull(self!.Phone);
+    }
+
+    [Fact]
+    public async Task EMP_01_manager_permissions_cover_personal_details_only()
+    {
+        var employee = await factory.CreateEmployeeAsync("PK", await factory.EmployeeIdAsync("PK-0005"), Personal);
 
         var asManager = await factory.CreateClientAs("dev-pk-linemanager").GetFromJsonAsync<EmployeeDetail>($"/api/employees/{employee.Id}");
-        var asHiringManager = await factory.CreateClientAs("dev-pk-hiringmanager").GetFromJsonAsync<EmployeeDetail>($"/api/employees/{employee.Id}");
         var asHr = await factory.CreateClientAs("dev-pk-hrexecutive").GetFromJsonAsync<EmployeeDetail>($"/api/employees/{employee.Id}");
         var self = await factory.CreateClientAs("dev-pk-employee").GetFromJsonAsync<EmployeeDetail>($"/api/employees/{await factory.EmployeeIdAsync("PK-0006")}");
 
-        Assert.Null(asManager!.Personal);
-        Assert.False(asManager.Permissions.CanViewPersonal);
-        Assert.False(asManager.Permissions.CanEdit);
-        Assert.Null(asHiringManager!.Personal);
-        Assert.Equal("35202-1234567-1", asHr!.Personal!.NationalId);
-        Assert.True(asHr.Permissions.CanEditPersonal);
-        Assert.NotNull(self!.Personal);
-        Assert.False(self.Permissions.CanEdit);
-        Assert.False(self.Permissions.CanEditPersonal);
-        Assert.True(self.Permissions.CanViewCompensation);
+        Assert.Equal(
+            new EmployeePermissions(CanEdit: false, CanViewPersonal: true, CanViewNationalId: false, CanEditPersonal: false, CanViewCompensation: false,
+                CanEditCompensation: false, CanViewDocuments: false, CanManageDocuments: false, CanTerminate: false),
+            asManager!.Permissions);
+        Assert.True(asHr!.Permissions is { CanViewNationalId: true, CanEditPersonal: true, CanViewDocuments: true, CanManageDocuments: true });
+        Assert.True(self!.Permissions is { CanViewPersonal: true, CanViewNationalId: true, CanEditPersonal: false, CanViewCompensation: true, CanViewDocuments: true });
+        Assert.Empty(asManager.Upcoming);
+    }
+
+    [Fact]
+    public async Task NFR_04_every_manager_view_of_personal_details_is_audited_but_HR_and_self_views_are_not()
+    {
+        var employee = await factory.CreateEmployeeAsync("PK", await factory.EmployeeIdAsync("PK-0005"), Personal);
+        Task<List<string>> ViewersAsync() => factory.WithDbAsync(db => db.AuditEntries
+            .Where(a => a.Action == AuditAction.Viewed && a.EntityType == "PersonalDetails" && a.EntityId == employee.Id.ToString())
+            .OrderBy(a => a.Id).Select(a => a.ActorId).ToListAsync());
+
+        await factory.CreateClientAs("dev-pk-linemanager").GetAsync($"/api/employees/{employee.Id}/personal");
+        await factory.CreateClientAs("dev-pk-linemanager").GetAsync($"/api/employees/{employee.Id}/personal");
+        await factory.CreateClientAs("dev-pk-hiringmanager").GetAsync($"/api/employees/{employee.Id}/personal");
+        await factory.CreateClientAs("dev-pk-hrexecutive").GetAsync($"/api/employees/{employee.Id}/personal");
+        await factory.CreateClientAs("dev-pk-linemanager").GetAsync($"/api/employees/{employee.Id}");
+
+        Assert.Equal(["dev-pk-linemanager", "dev-pk-linemanager", "dev-pk-hiringmanager"], await ViewersAsync());
+    }
+
+    [Theory]
+    [MemberData(nameof(SeedData.DevUsersData), MemberType = typeof(SeedData))]
+    public async Task NFR_02_personal_details_follow_the_team_scope(string devUser)
+    {
+        // The finance analyst has no manager: only HR (their countries) and nobody else may read them.
+        var finance = await factory.EmployeeIdAsync("PK-0009");
+
+        var response = await factory.CreateClientAs(devUser).GetAsync($"/api/employees/{finance}/personal");
+
+        var allowed = devUser is "dev-pk-hradmin" or "dev-us-hradmin" or "dev-pk-hrexecutive";
+        Assert.True((allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden) == response.StatusCode, $"{devUser}: {response.StatusCode}");
     }
 
     [Fact]
@@ -122,10 +171,10 @@ public class EmployeeRecordsTests(HrPortalApiFactory factory)
         var self = await factory.CreateClientAs("dev-pk-employee").PutAsJsonAsync($"/api/employees/{await factory.EmployeeIdAsync("PK-0006")}/personal", update);
 
         Assert.Equal(HttpStatusCode.OK, asHr.StatusCode);
-        var updated = (await asHr.Content.ReadFromJsonAsync<EmployeeDetail>())!;
-        Assert.Equal("Raza", updated.FamilyName);
-        Assert.Equal("Karachi", updated.Personal!.City);
-        Assert.Empty(updated.Personal.EmergencyContacts);
+        var updated = (await asHr.Content.ReadFromJsonAsync<PersonalDetailsDto>())!;
+        Assert.Equal("Karachi", updated.City);
+        Assert.Empty(updated.EmergencyContacts);
+        Assert.Equal("Raza", (await factory.CreateClientAs("dev-pk-hradmin").GetFromJsonAsync<EmployeeDetail>($"/api/employees/{employee.Id}"))!.FamilyName);
         Assert.Equal(HttpStatusCode.Forbidden, asManager.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, self.StatusCode);
     }

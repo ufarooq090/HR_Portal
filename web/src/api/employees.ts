@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type {
   AddCompensationRequest,
@@ -14,13 +14,15 @@ import type {
   JobChangeRequest,
   PersonalDetails,
   StatusChangeRequest,
+  UpdateScheduledChangeRequest,
 } from './types'
 
 export const employeeKeys = {
-  all: ['employees'] as const,
+  lists: ['employees', 'list'] as const,
   /** Keyed by URL, so equivalent filters (e.g. empty strings vs. missing) share one cached request. */
   list: (filters: EmployeeFilters) => ['employees', 'list', employeesUrl(filters)] as const,
   detail: (id: string) => ['employees', id] as const,
+  personal: (id: string) => ['employees', id, 'personal'] as const,
   history: (id: string) => ['employees', id, 'history'] as const,
   compensation: (id: string) => ['employees', id, 'compensation'] as const,
   documents: (id: string) => ['employees', id, 'documents'] as const,
@@ -74,7 +76,7 @@ function useEmployeeMutation<TBody, TResult = EmployeeDetail>(path: (id: string)
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: TBody }) => send(path(id), body),
-    onSuccess: (_, { id }) => queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) }),
+    onSuccess: (_, { id }) => refreshRecord(queryClient, id),
   })
 }
 
@@ -82,16 +84,66 @@ export function useCreateEmployee() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: CreateEmployeeRequest) => api.post<EmployeeDetail>('/api/employees', body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: employeeKeys.all }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: employeeKeys.lists }),
   })
 }
 
 const base = (id: string) => `/api/employees/${encodeURIComponent(id)}`
 
-export const useUpdatePersonal = () =>
-  useEmployeeMutation((id) => `${base(id)}/personal`, (url, body: { givenName: string; familyName: string; personal: PersonalDetails }) =>
-    api.put<EmployeeDetail>(url, body),
-  )
+/**
+ * Personal details, fetched only when shown: a manager's view of a team member's details is recorded in the audit
+ * log, so it is never prefetched or cached.
+ */
+export function usePersonal(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: employeeKeys.personal(id),
+    queryFn: () => api.get<PersonalDetails>(`${base(id)}/personal`),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export function useUpdatePersonal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { givenName: string; familyName: string; personal: PersonalDetails } }) =>
+      api.put<PersonalDetails>(`${base(id)}/personal`, body),
+    onSuccess: (personal, { id }) => {
+      queryClient.setQueryData(employeeKeys.personal(id), personal)
+      return queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id), exact: true })
+    },
+  })
+}
+
+export function useUpdateScheduledChange() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, changeId, body }: { id: string; changeId: string; body: UpdateScheduledChangeRequest }) =>
+      api.put<EmployeeDetail>(`${base(id)}/scheduled-changes/${encodeURIComponent(changeId)}`, body),
+    onSuccess: (detail, { id }) => queryClient.setQueryData(employeeKeys.detail(id), detail),
+  })
+}
+
+export function useCancelScheduledChange() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, changeId }: { id: string; changeId: string }) =>
+      api.delete(`${base(id)}/scheduled-changes/${encodeURIComponent(changeId)}`),
+    onSuccess: (_, { id }) => refreshRecord(queryClient, id),
+  })
+}
+
+/**
+ * Refreshes the record and its history after a change. Exact keys only: a prefix match would also re-fetch an open
+ * personal-details or compensation tab, and each of those fetches can be an audited view.
+ */
+function refreshRecord(queryClient: QueryClient, id: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id), exact: true }),
+    queryClient.invalidateQueries({ queryKey: employeeKeys.history(id), exact: true }),
+  ])
+}
 
 export const useChangeJob = () =>
   useEmployeeMutation((id) => `${base(id)}/job-changes`, (url, body: JobChangeRequest) => api.post<EmployeeDetail>(url, body))
@@ -151,7 +203,7 @@ export function useImportEmployees() {
   return useMutation({
     mutationFn: (file: File) => api.postForm<ImportResult>('/api/employees/import', fileForm(file)),
     onSuccess: (result) => {
-      if (result.imported > 0) void queryClient.invalidateQueries({ queryKey: employeeKeys.all })
+      if (result.imported > 0) void queryClient.invalidateQueries({ queryKey: employeeKeys.lists })
     },
   })
 }

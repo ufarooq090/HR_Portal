@@ -128,17 +128,19 @@ public class UserAccessTests
     }
 
     [Fact]
-    public void EMP_01_managers_do_not_get_personal_data_of_their_team()
+    public void EMP_01_managers_see_their_teams_personal_details_but_not_confidential_data()
     {
         var manager = User([Roles.LineManager, Roles.HiringManager, Roles.Employee]);
 
-        Assert.Equal([Own], manager.PersonalDataScopesFor(Capability.View));
-        Assert.Contains(Team, manager.ScopesFor(HrModule.EmployeeRecords, Capability.View));
+        Assert.Equal([Own, Team], manager.PersonalDataScopesFor(Capability.View).Order());
+        Assert.Equal([Own], manager.ConfidentialDataScopesFor(Capability.View));
+        Assert.Empty(manager.PersonalDataScopesFor(Capability.Edit));
     }
 
     [Fact]
     public void EMP_01_HR_get_personal_data_in_their_countries_and_only_HR_can_edit_it()
     {
+        Assert.Equal([Own, Countries], User([Roles.HrExecutive, Roles.Employee]).ConfidentialDataScopesFor(Capability.View).Order());
         Assert.Equal([Own, Countries], User([Roles.HrExecutive, Roles.Employee]).PersonalDataScopesFor(Capability.View).Order());
         Assert.Equal([Countries], User([Roles.HrExecutive, Roles.Employee]).PersonalDataScopesFor(Capability.Edit));
         Assert.Empty(User([Roles.Employee]).PersonalDataScopesFor(Capability.Edit));

@@ -44,6 +44,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException($"'{BlobFileStore.ConnectionStringKey}' is not configured.")));
         services.AddSingleton<IFileStore, BlobFileStore>();
         services.AddScoped<EmployeeImporter>();
+        services.AddScoped<ScheduledChangeRunner>();
 
         // Microsoft Graph implementations replace these for deployed environments.
         services.AddOptions<SmtpEmailOptions>().Bind(configuration.GetSection("Email:Smtp"));

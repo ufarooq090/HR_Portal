@@ -14,6 +14,7 @@ async function openProfile(page: Page, name: string) {
 }
 
 test('EMP-01/02/05: HR executive adds an employee, then records a promotion', async ({ page }) => {
+  test.slow() // long form plus a dialog and three tabs
   const number = `PK-E2E-${unique()}`
   await signInAs(page, 'HrExecutive', 'PK')
   await openNav(page, 'People')
@@ -104,8 +105,13 @@ test('EMP-03/MC-02: salary is visible to HR admins and the employee, not to mana
   await openProfile(page, employee)
   await expect(page.getByRole('tab', { name: 'Job' })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Compensation' })).toHaveCount(0)
-  await expect(page.getByRole('tab', { name: 'Personal' })).toHaveCount(0)
   await expect(page.getByRole('tab', { name: 'Documents' })).toHaveCount(0)
+
+  // HR decision: managers see their team's personal details (audited), never the national ID.
+  await page.getByRole('tab', { name: 'Personal' }).click()
+  await expect(page.getByText('Each view is recorded in the audit log.')).toBeVisible()
+  await expect(page.getByText('+92 300 000 0006')).toBeVisible()
+  await expect(page.getByText('National ID')).toHaveCount(0)
   await page.getByRole('button', { name: devName('LineManager', 'PK') }).click()
   await page.getByRole('menuitem', { name: 'Switch user' }).click()
 
@@ -221,4 +227,53 @@ test('NFR-02: employees and managers do not get Add employee or Import', async (
   await expect(page.getByRole('table', { name: 'People' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add employee' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Import' })).toHaveCount(0)
+})
+
+test('Scheduled changes: a future promotion shows as upcoming, can be edited and cancelled', async ({ page, request }) => {
+  const employee = await createEmployee(request, 'PK')
+  await signInAs(page, 'HrAdmin', 'PK')
+  await openProfile(page, employee.fullName)
+
+  await page.getByRole('button', { name: 'Change job' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Designation').fill('Lead QA Engineer')
+  await dialog.getByLabel('Effective date').fill('2030-01-15')
+  await dialog.getByRole('button', { name: 'Save' }).click()
+  await expect(dialog).toHaveCount(0)
+
+  const upcoming = page.getByLabel('Upcoming changes')
+  await expect(upcoming).toContainText('Promotion on 15 Jan 2030')
+  await expect(upcoming).toContainText('Lead QA Engineer')
+  // Not applied yet: the record keeps the current designation.
+  await expect(page.getByText(`QA Engineer · Engineering · ${employee.employeeNumber}`)).toBeVisible()
+
+  await upcoming.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('dialog').getByLabel('Designation').fill('Principal QA Engineer')
+  await page.getByRole('dialog').getByLabel('Effective date').fill('2030-02-01')
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+  await expect(upcoming).toContainText('Promotion on 1 Feb 2030')
+  await expect(upcoming).toContainText('Principal QA Engineer')
+
+  await upcoming.getByRole('button', { name: 'Cancel change' }).click()
+  await expect(upcoming).toHaveCount(0)
+})
+
+test('Scheduled changes: a future manager change is scheduled; a reporting loop is refused', async ({ page, request }) => {
+  const manager = await createEmployee(request, 'PK')
+  const report = await createEmployee(request, 'PK', { managerId: manager.id })
+  await signInAs(page, 'HrAdmin', 'PK')
+  await openProfile(page, report.fullName)
+
+  await page.getByRole('button', { name: 'Change manager' }).click()
+  await page.getByRole('combobox', { name: 'Reporting manager' }).click()
+  await page.getByRole('option', { name: 'No manager' }).click()
+  await page.getByRole('dialog').getByLabel('Effective date').fill('2030-03-01')
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByLabel('Upcoming changes')).toContainText('Manager: no manager')
+
+  const loop = await request.post(`${apiUrl}/api/employees/${manager.id}/manager`, {
+    headers: asUser('HrAdmin', 'PK'),
+    data: { managerId: report.id, effectiveDate: '2030-03-01', reason: null },
+  })
+  expect(loop.status()).toBe(400)
 })

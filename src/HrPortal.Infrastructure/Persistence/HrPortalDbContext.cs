@@ -36,6 +36,8 @@ public sealed class HrPortalDbContext(DbContextOptions<HrPortalDbContext> option
 
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
 
+    public DbSet<ScheduledJobChange> ScheduledJobChanges => Set<ScheduledJobChange>();
+
     /// <summary>
     /// Ids of everyone who reports to <paramref name="managerId"/>, directly or indirectly. Composable: use it
     /// inside other queries so team scoping runs in the database (function created by a migration).

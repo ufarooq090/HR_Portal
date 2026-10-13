@@ -1,4 +1,5 @@
 using HrPortal.Api.Auth;
+using HrPortal.Domain.Audit;
 using HrPortal.Domain.Common;
 using HrPortal.Domain.Employees;
 using HrPortal.Domain.Organisation;
@@ -11,11 +12,16 @@ namespace HrPortal.Api.Employees;
 
 /// <summary>
 /// Employee records (EMP-01, 02, 04, 05, 08). Every query is scoped by the permission matrix: HR sees their
-/// countries, managers their team's work profile, everyone their own record. Personal details are limited to
-/// HR and the employee (see <see cref="UserAccess.PersonalDataScopesFor"/>).
+/// countries, managers their team, everyone their own record. Managers also see their team's personal details
+/// (audited) but never the national ID or documents (see <see cref="UserAccess.PersonalDataScopesFor"/> and
+/// <see cref="UserAccess.ConfidentialDataScopesFor"/>). Future-dated job and manager changes are scheduled and
+/// applied by <c>ScheduledChangeRunner</c> on the effective date in the employee's office time zone.
 /// </summary>
 public static class EmployeeEndpoints
 {
+    /// <summary>Audit entity type for views of personal details by managers.</summary>
+    public const string PersonalDetailsAuditType = "PersonalDetails";
+
     public sealed record EmployeeSummary(
         Guid Id,
         string EmployeeNumber,
@@ -51,11 +57,44 @@ public static class EmployeeEndpoints
     public sealed record EmployeePermissions(
         bool CanEdit,
         bool CanViewPersonal,
+        bool CanViewNationalId,
         bool CanEditPersonal,
         bool CanViewCompensation,
         bool CanEditCompensation,
+        bool CanViewDocuments,
         bool CanManageDocuments,
         bool CanTerminate);
+
+    /// <summary>A future-dated change: Pending is shown as "Upcoming"; Failed explains why it could not be applied.</summary>
+    public sealed record ScheduledChangeDto(
+        Guid Id,
+        JobChangeKind Kind,
+        DateOnly EffectiveDate,
+        string? Reason,
+        ScheduledChangeStatus Status,
+        string? Outcome,
+        string? Designation,
+        Guid? LegalEntityId,
+        string? LegalEntityName,
+        Guid? OfficeLocationId,
+        string? OfficeLocationName,
+        Guid? DepartmentId,
+        string? DepartmentName,
+        Guid? GradeId,
+        string? GradeName,
+        Guid? NewManagerId,
+        string? NewManagerName);
+
+    /// <summary>Edit a pending change: placement fields for job changes, <c>ManagerId</c> for manager changes.</summary>
+    public sealed record UpdateScheduledChangeRequest(
+        DateOnly EffectiveDate,
+        string? Reason,
+        string? Designation,
+        Guid? LegalEntityId,
+        Guid? OfficeLocationId,
+        Guid? DepartmentId,
+        Guid? GradeId,
+        Guid? ManagerId);
 
     public sealed record EmployeeDetail(
         Guid Id,
@@ -81,7 +120,7 @@ public static class EmployeeEndpoints
         DateOnly JoiningDate,
         DateOnly? ProbationEndDate,
         DateOnly? LastWorkingDate,
-        PersonalDetailsDto? Personal,
+        IReadOnlyList<ScheduledChangeDto> Upcoming,
         EmployeePermissions Permissions);
 
     public sealed record CreateEmployeeRequest(
@@ -138,7 +177,10 @@ public static class EmployeeEndpoints
         group.MapGet("/", ListAsync).RequireAuthorization(view);
         group.MapGet("/{id:guid}", GetAsync).RequireAuthorization(view);
         group.MapPost("/", CreateAsync).RequireAuthorization(create);
+        group.MapGet("/{id:guid}/personal", GetPersonalAsync).RequireAuthorization(view);
         group.MapPut("/{id:guid}/personal", UpdatePersonalAsync).RequireAuthorization(edit);
+        group.MapPut("/{id:guid}/scheduled-changes/{changeId:guid}", UpdateScheduledChangeAsync).RequireAuthorization(edit);
+        group.MapDelete("/{id:guid}/scheduled-changes/{changeId:guid}", CancelScheduledChangeAsync).RequireAuthorization(edit);
         group.MapPost("/{id:guid}/job-changes", ChangeJobAsync).RequireAuthorization(edit);
         group.MapPost("/{id:guid}/manager", ChangeManagerAsync).RequireAuthorization(edit);
         group.MapPost("/{id:guid}/status", ChangeStatusAsync).RequireAuthorization(edit);
@@ -268,7 +310,29 @@ public static class EmployeeEndpoints
         person.Rename(request.GivenName, request.FamilyName);
         person.UpdatePersonalDetails(ToDomain(request.Personal), Today(clock));
         await db.SaveChangesAsync(ct);
-        return Results.Ok(await LoadDetailAsync(db, access, id, ct));
+        return Results.Ok(await LoadPersonalAsync(db, id, includeNationalId: true, ct));
+    }
+
+    /// <summary>
+    /// Personal details, fetched separately so a view is only recorded when someone actually opens them. Managers see
+    /// their reports' details without the national ID, and each such view is audited (HR decision, 13 Oct 2026).
+    /// </summary>
+    private static async Task<IResult> GetPersonalAsync(
+        Guid id, HrPortalDbContext db, IAccessContext accessContext, IAuditLog audit, CancellationToken ct)
+    {
+        var access = await accessContext.GetAsync(ct);
+        if (await EmployeeScope.DenyAsync(db, access, id, access.PersonalDataScopesFor(Capability.View), ct) is { } denied)
+        {
+            return denied;
+        }
+
+        var confidential = await EmployeeScope.CoversAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.View), ct);
+        if (!confidential)
+        {
+            await audit.RecordViewAsync(PersonalDetailsAuditType, id.ToString(), ct);
+        }
+
+        return Results.Ok(await LoadPersonalAsync(db, id, includeNationalId: confidential, ct));
     }
 
     private static async Task<IResult> ChangeJobAsync(
@@ -287,7 +351,16 @@ public static class EmployeeEndpoints
         }
 
         var employee = await db.Employees.SingleAsync(e => e.Id == id, ct);
-        employee.ChangeJob(request.Kind, placement, request.EffectiveDate, request.Reason, Today(clock));
+        var today = await LocalTodayAsync(db, clock, id, ct);
+        if (request.EffectiveDate > today)
+        {
+            db.ScheduledJobChanges.Add(ScheduledJobChange.ForJob(employee, request.Kind, placement, request.EffectiveDate, request.Reason, today));
+        }
+        else
+        {
+            employee.ChangeJob(request.Kind, placement, request.EffectiveDate, request.Reason, today);
+        }
+
         await db.SaveChangesAsync(ct);
         return Results.Ok(await LoadDetailAsync(db, access, id, ct));
     }
@@ -304,7 +377,16 @@ public static class EmployeeEndpoints
         var employee = await db.Employees.SingleAsync(e => e.Id == id, ct);
         var manager = request.ManagerId is { } managerId ? await LoadManagerAsync(db, managerId, ct) : null;
         var loop = manager is not null && await db.ReportIds(id).AnyAsync(r => r == manager.Id, ct);
-        employee.ChangeManager(manager, loop, request.EffectiveDate, request.Reason, Today(clock));
+        var today = await LocalTodayAsync(db, clock, id, ct);
+        if (request.EffectiveDate > today)
+        {
+            db.ScheduledJobChanges.Add(ScheduledJobChange.ForManager(employee, manager, loop, request.EffectiveDate, request.Reason, today));
+        }
+        else
+        {
+            employee.ChangeManager(manager, loop, request.EffectiveDate, request.Reason, today);
+        }
+
         await db.SaveChangesAsync(ct);
         return Results.Ok(await LoadDetailAsync(db, access, id, ct));
     }
@@ -326,7 +408,85 @@ public static class EmployeeEndpoints
         var employee = await db.Employees.Include(e => e.Grade).SingleAsync(e => e.Id == id, ct);
         var country = await db.CountrySettings.SingleAsync(c => c.CountryCode == employee.CountryCode, ct);
         employee.ChangeStatus(
-            request.Status, request.EffectiveDate, request.LastWorkingDate, EmploymentTerms.For(country, employee.Grade), request.Reason, Today(clock));
+            request.Status, request.EffectiveDate, request.LastWorkingDate, EmploymentTerms.For(country, employee.Grade), request.Reason,
+            await LocalTodayAsync(db, clock, id, ct));
+
+        // Someone who has left gets no further job changes.
+        if (!employee.Status.IsActive())
+        {
+            var pending = await db.ScheduledJobChanges.Where(c => c.EmployeeId == id && c.Status == ScheduledChangeStatus.Pending).ToListAsync(ct);
+            foreach (var change in pending)
+            {
+                change.Cancel($"Cancelled: the employee {employee.Status.ToString().ToLowerInvariant()}.", clock.GetUtcNow());
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(await LoadDetailAsync(db, access, id, ct));
+    }
+
+    /// <summary>HR edits a pending change; the same checks as scheduling run again, including the reporting-loop check.</summary>
+    private static async Task<IResult> UpdateScheduledChangeAsync(
+        Guid id, Guid changeId, UpdateScheduledChangeRequest request, HrPortalDbContext db, IAccessContext accessContext, TimeProvider clock, CancellationToken ct)
+    {
+        var access = await accessContext.GetAsync(ct);
+        if (await EmployeeScope.DenyAsync(db, access, id, access.ScopesFor(HrModule.EmployeeRecords, Capability.Edit), ct) is { } denied)
+        {
+            return denied;
+        }
+
+        var change = await db.ScheduledJobChanges.SingleOrDefaultAsync(c => c.Id == changeId && c.EmployeeId == id, ct);
+        if (change is null)
+        {
+            return Results.NotFound();
+        }
+
+        var employee = await db.Employees.SingleAsync(e => e.Id == id, ct);
+        var today = await LocalTodayAsync(db, clock, id, ct);
+        if (change.IsManagerChange)
+        {
+            var manager = request.ManagerId is { } managerId ? await LoadManagerAsync(db, managerId, ct) : null;
+            var loop = manager is not null && await db.ReportIds(id).AnyAsync(r => r == manager.Id, ct);
+            change.UpdateManager(employee, manager, loop, request.EffectiveDate, request.Reason, today);
+        }
+        else
+        {
+            var placement = await LoadPlacementAsync(
+                db,
+                request.Designation ?? string.Empty,
+                request.LegalEntityId ?? Guid.Empty,
+                request.OfficeLocationId ?? Guid.Empty,
+                request.DepartmentId ?? Guid.Empty,
+                request.GradeId,
+                ct);
+            if (!EmployeeScope.CanPlaceIn(access, Capability.Edit, placement.LegalEntity.CountryCode))
+            {
+                return Results.Forbid();
+            }
+
+            change.UpdateJob(employee, placement, request.EffectiveDate, request.Reason, today);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(await LoadDetailAsync(db, access, id, ct));
+    }
+
+    private static async Task<IResult> CancelScheduledChangeAsync(
+        Guid id, Guid changeId, HrPortalDbContext db, IAccessContext accessContext, TimeProvider clock, CancellationToken ct)
+    {
+        var access = await accessContext.GetAsync(ct);
+        if (await EmployeeScope.DenyAsync(db, access, id, access.ScopesFor(HrModule.EmployeeRecords, Capability.Edit), ct) is { } denied)
+        {
+            return denied;
+        }
+
+        var change = await db.ScheduledJobChanges.SingleOrDefaultAsync(c => c.Id == changeId && c.EmployeeId == id, ct);
+        if (change is null)
+        {
+            return Results.NotFound();
+        }
+
+        change.Cancel("Cancelled by HR.", clock.GetUtcNow());
         await db.SaveChangesAsync(ct);
         return Results.Ok(await LoadDetailAsync(db, access, id, ct));
     }
@@ -361,7 +521,7 @@ public static class EmployeeEndpoints
     private static async Task<EmployeeDetail> LoadDetailAsync(HrPortalDbContext db, UserAccess access, Guid id, CancellationToken ct)
     {
         var e = await db.Employees.AsNoTracking()
-            .Include(x => x.Person).ThenInclude(p => p.EmergencyContacts)
+            .Include(x => x.Person)
             .Include(x => x.LegalEntity)
             .Include(x => x.OfficeLocation)
             .Include(x => x.Department)
@@ -371,31 +531,71 @@ public static class EmployeeEndpoints
             .SingleAsync(x => x.Id == id, ct);
 
         var canEdit = await EmployeeScope.CoversAsync(db, access, id, access.ScopesFor(HrModule.EmployeeRecords, Capability.Edit), ct);
-        var canViewPersonal = await EmployeeScope.CoversAsync(db, access, id, access.PersonalDataScopesFor(Capability.View), ct);
-        var canEditPersonal = await EmployeeScope.CoversAsync(db, access, id, access.PersonalDataScopesFor(Capability.Edit), ct);
+        var canViewConfidential = await EmployeeScope.CoversAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.View), ct);
+        var canManageConfidential = await EmployeeScope.CoversAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.Edit), ct);
         var permissions = new EmployeePermissions(
             canEdit,
-            canViewPersonal,
-            canEditPersonal,
+            await EmployeeScope.CoversAsync(db, access, id, access.PersonalDataScopesFor(Capability.View), ct),
+            canViewConfidential,
+            await EmployeeScope.CoversAsync(db, access, id, access.PersonalDataScopesFor(Capability.Edit), ct),
             await EmployeeScope.CoversAsync(db, access, id, access.ScopesFor(HrModule.Compensation, Capability.View), ct),
             await EmployeeScope.CoversAsync(db, access, id, access.ScopesFor(HrModule.Compensation, Capability.Create), ct),
-            canEditPersonal,
+            canViewConfidential,
+            canManageConfidential,
             canEdit && access.CanTerminate);
 
-        var p = e.Person;
-        var personal = canViewPersonal
-            ? new PersonalDetailsDto(
-                p.PersonalEmail, p.Phone, p.DateOfBirth, p.AddressLine1, p.AddressLine2, p.City, p.Region, p.PostalCode,
-                p.AddressCountryCode, p.NationalId,
-                p.EmergencyContacts.Select(c => new EmergencyContactDto(c.Name, c.Relationship, c.Phone)).ToList())
-            : null;
+        // Upcoming changes are HR's working information, shown to those who can edit the record.
+        IReadOnlyList<ScheduledChangeDto> upcoming = canEdit ? await LoadUpcomingAsync(db, id, ct) : [];
 
         return new EmployeeDetail(
-            e.Id, e.EmployeeNumber, p.GivenName, p.FamilyName, e.Designation, e.WorkEmail, e.CountryCode,
+            e.Id, e.EmployeeNumber, e.Person.GivenName, e.Person.FamilyName, e.Designation, e.WorkEmail, e.CountryCode,
             e.LegalEntityId, e.LegalEntity.Name, e.OfficeLocationId, e.OfficeLocation.Name, e.DepartmentId, e.Department.Name,
             e.GradeId, e.Grade?.Name, e.ManagerId, e.Manager?.Person.FullName,
             e.EmploymentType, e.Status, canEdit ? EmploymentStatusRules.NextStatuses(e.Status) : [],
-            e.JoiningDate, e.ProbationEndDate, e.LastWorkingDate, personal, permissions);
+            e.JoiningDate, e.ProbationEndDate, e.LastWorkingDate, upcoming, permissions);
+    }
+
+    /// <summary>Pending changes, plus failed ones HR has not yet dealt with (a later change for the employee supersedes them).</summary>
+    private static async Task<List<ScheduledChangeDto>> LoadUpcomingAsync(HrPortalDbContext db, Guid employeeId, CancellationToken ct) =>
+        await (
+                from c in db.ScheduledJobChanges.AsNoTracking()
+                where c.EmployeeId == employeeId
+                    && (c.Status == ScheduledChangeStatus.Pending || c.Status == ScheduledChangeStatus.Failed)
+                from l in db.LegalEntities.Where(x => x.Id == c.LegalEntityId).DefaultIfEmpty()
+                from o in db.OfficeLocations.Where(x => x.Id == c.OfficeLocationId).DefaultIfEmpty()
+                from d in db.Departments.Where(x => x.Id == c.DepartmentId).DefaultIfEmpty()
+                from g in db.Grades.Where(x => x.Id == c.GradeId).DefaultIfEmpty()
+                from m in db.Employees.Where(x => x.Id == c.NewManagerId).DefaultIfEmpty()
+                orderby c.EffectiveDate, c.Id
+                select new ScheduledChangeDto(
+                    c.Id, c.Kind, c.EffectiveDate, c.Reason, c.Status, c.Outcome, c.Designation,
+                    c.LegalEntityId, l == null ? null : l.Name,
+                    c.OfficeLocationId, o == null ? null : o.Name,
+                    c.DepartmentId, d == null ? null : d.Name,
+                    c.GradeId, g == null ? null : g.Name,
+                    c.NewManagerId, m == null ? null : m.Person.GivenName + " " + m.Person.FamilyName))
+            .ToListAsync(ct);
+
+    private static async Task<PersonalDetailsDto> LoadPersonalAsync(HrPortalDbContext db, Guid employeeId, bool includeNationalId, CancellationToken ct)
+    {
+        var p = (await db.Employees.AsNoTracking().Include(e => e.Person).ThenInclude(x => x.EmergencyContacts).SingleAsync(e => e.Id == employeeId, ct)).Person;
+        return new PersonalDetailsDto(
+            p.PersonalEmail, p.Phone, p.DateOfBirth, p.AddressLine1, p.AddressLine2, p.City, p.Region, p.PostalCode, p.AddressCountryCode,
+            includeNationalId ? p.NationalId : null,
+            p.EmergencyContacts.Select(c => new EmergencyContactDto(c.Name, c.Relationship, c.Phone)).ToList());
+    }
+
+    /// <summary>Today in the employee's office time zone; effective dates start at local midnight.</summary>
+    private static async Task<DateOnly> LocalTodayAsync(HrPortalDbContext db, TimeProvider clock, Guid employeeId, CancellationToken ct)
+    {
+        var timeZone = await (
+                from e in db.Employees
+                where e.Id == employeeId
+                join o in db.OfficeLocations on e.OfficeLocationId equals o.Id
+                join c in db.CountrySettings on o.CountryCode equals c.CountryCode
+                select o.TimeZone ?? c.DefaultTimeZone)
+            .SingleAsync(ct);
+        return LocalCalendar.Today(clock.GetUtcNow(), timeZone);
     }
 
     private static async Task<JobPlacement> LoadPlacementAsync(

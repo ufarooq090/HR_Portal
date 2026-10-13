@@ -29,6 +29,7 @@ public sealed class HrPortalApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("ConnectionStrings:HrPortal", _postgres.GetConnectionString());
         builder.UseSetting(DevAuthGuard.ConfigKey, "true");
         builder.UseSetting("Database:MigrateOnStartup", "true");
+        builder.UseSetting("BackgroundJobs:RunServer", "false");
         builder.UseSetting("FieldEncryption:ActiveKeyId", "test");
         builder.UseSetting("FieldEncryption:Keys:test", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         builder.ConfigureTestServices(services => services.AddSingleton<IFileStore>(Files));

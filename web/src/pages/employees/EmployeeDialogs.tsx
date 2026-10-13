@@ -11,8 +11,8 @@ import {
 } from '@fluentui/react-components'
 import { type ReactNode, useState } from 'react'
 import { ApiError } from '../../api/client'
-import { useChangeJob, useChangeManager, useChangeStatus, useUpdatePersonal } from '../../api/employees'
-import type { EmployeeDetail, EmploymentStatus, JobChangeKind, PersonalDetails } from '../../api/types'
+import { useChangeJob, useChangeManager, useChangeStatus, useUpdatePersonal, useUpdateScheduledChange } from '../../api/employees'
+import type { EmployeeDetail, EmploymentStatus, JobChangeKind, PersonalDetails, ScheduledChange } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
 import { ManagerField, PersonalSection, type Placement, PlacementSection } from './EmployeeFormSections'
 import { SelectField, TextField } from './fields'
@@ -77,68 +77,115 @@ function FormDialog({
 const fieldErrors = (error: unknown) => (field: string) => (error instanceof ApiError ? error.fieldError(field) : undefined)
 
 /** EMP-05: promotion, transfer, redesignation or correction, recorded with an effective date. */
-export function JobChangeDialog({ employee, onClose }: { employee: EmployeeDetail; onClose: () => void }) {
+const futureHint = 'A future date schedules the change; it is applied automatically on that day.'
+
+/**
+ * EMP-05: promotion, transfer, redesignation or correction. A future effective date schedules it (shown as
+ * Upcoming); passing <paramref name="scheduled"/> edits a pending change instead.
+ */
+export function JobChangeDialog({ employee, scheduled, onClose }: { employee: EmployeeDetail; scheduled?: ScheduledChange; onClose: () => void }) {
   const change = useChangeJob()
-  const [kind, setKind] = useState<JobChangeKind>('Promotion')
-  const [effectiveDate, setEffectiveDate] = useState(todayIso())
-  const [reason, setReason] = useState('')
+  const update = useUpdateScheduledChange()
+  const mutation = scheduled ? update : change
+  const [kind, setKind] = useState<JobChangeKind>(scheduled?.kind ?? 'Promotion')
+  const [effectiveDate, setEffectiveDate] = useState(scheduled?.effectiveDate ?? todayIso())
+  const [reason, setReason] = useState(scheduled?.reason ?? '')
   const [placement, setPlacement] = useState<Placement>({
-    designation: employee.designation,
-    legalEntityId: employee.legalEntityId,
-    officeLocationId: employee.officeLocationId,
-    departmentId: employee.departmentId,
-    gradeId: employee.gradeId ?? '',
+    designation: scheduled?.designation ?? employee.designation,
+    legalEntityId: scheduled?.legalEntityId ?? employee.legalEntityId,
+    officeLocationId: scheduled?.officeLocationId ?? employee.officeLocationId,
+    departmentId: scheduled?.departmentId ?? employee.departmentId,
+    gradeId: (scheduled ? scheduled.gradeId : employee.gradeId) ?? '',
   })
-  const error = fieldErrors(change.error)
+  const error = fieldErrors(mutation.error)
+
+  const submit = () => {
+    const fields = { ...placement, gradeId: placement.gradeId || null, reason: reason || null, effectiveDate }
+    if (scheduled) {
+      update.mutate({ id: employee.id, changeId: scheduled.id, body: { ...fields, managerId: null } }, { onSuccess: onClose })
+    } else {
+      change.mutate({ id: employee.id, body: { kind, ...fields } }, { onSuccess: onClose })
+    }
+  }
 
   return (
     <FormDialog
-      title="Change job"
+      title={scheduled ? `Edit upcoming ${label(scheduled.kind).toLowerCase()}` : 'Change job'}
       wide
-      error={change.error}
-      pending={change.isPending}
+      error={mutation.error}
+      pending={mutation.isPending}
       onClose={onClose}
-      onSubmit={() =>
-        change.mutate(
-          { id: employee.id, body: { kind, effectiveDate, ...placement, gradeId: placement.gradeId || null, reason: reason || null } },
-          { onSuccess: onClose },
-        )
-      }
+      onSubmit={submit}
     >
-      <SelectField
-        label="Type of change"
+      {!scheduled && (
+        <SelectField
+          label="Type of change"
+          required
+          value={kind}
+          onChange={(v) => setKind(v as JobChangeKind)}
+          options={(['Promotion', 'Transfer', 'Redesignation', 'Correction'] as const).map((k) => ({ value: k, label: label(k) }))}
+          error={error('kind')}
+        />
+      )}
+      <TextField
+        label="Effective date"
+        type="date"
         required
-        value={kind}
-        onChange={(v) => setKind(v as JobChangeKind)}
-        options={(['Promotion', 'Transfer', 'Redesignation', 'Correction'] as const).map((k) => ({ value: k, label: label(k) }))}
-        error={error('kind')}
+        value={effectiveDate}
+        onChange={setEffectiveDate}
+        hint={futureHint}
+        error={error('effectiveDate')}
       />
-      <TextField label="Effective date" type="date" required value={effectiveDate} onChange={setEffectiveDate} error={error('effectiveDate')} />
       <PlacementSection value={placement} onChange={setPlacement} error={error} />
       <TextField label="Reason" multiline value={reason} onChange={setReason} error={error('reason')} />
     </FormDialog>
   )
 }
 
-export function ManagerDialog({ employee, onClose }: { employee: EmployeeDetail; onClose: () => void }) {
+/** New reporting manager, now or on a future date. Passing <paramref name="scheduled"/> edits a pending manager change. */
+export function ManagerDialog({ employee, scheduled, onClose }: { employee: EmployeeDetail; scheduled?: ScheduledChange; onClose: () => void }) {
   const change = useChangeManager()
-  const [managerId, setManagerId] = useState(employee.managerId ?? '')
-  const [effectiveDate, setEffectiveDate] = useState(todayIso())
-  const [reason, setReason] = useState('')
-  const error = fieldErrors(change.error)
+  const update = useUpdateScheduledChange()
+  const mutation = scheduled ? update : change
+  const [managerId, setManagerId] = useState((scheduled ? scheduled.newManagerId : employee.managerId) ?? '')
+  const [effectiveDate, setEffectiveDate] = useState(scheduled?.effectiveDate ?? todayIso())
+  const [reason, setReason] = useState(scheduled?.reason ?? '')
+  const error = fieldErrors(mutation.error)
+
+  const submit = () => {
+    const fields = { managerId: managerId || null, effectiveDate, reason: reason || null }
+    if (scheduled) {
+      update.mutate(
+        {
+          id: employee.id,
+          changeId: scheduled.id,
+          body: { ...fields, designation: null, legalEntityId: null, officeLocationId: null, departmentId: null, gradeId: null },
+        },
+        { onSuccess: onClose },
+      )
+    } else {
+      change.mutate({ id: employee.id, body: fields }, { onSuccess: onClose })
+    }
+  }
 
   return (
     <FormDialog
-      title="Change manager"
-      error={change.error}
-      pending={change.isPending}
+      title={scheduled ? 'Edit upcoming manager change' : 'Change manager'}
+      error={mutation.error}
+      pending={mutation.isPending}
       onClose={onClose}
-      onSubmit={() =>
-        change.mutate({ id: employee.id, body: { managerId: managerId || null, effectiveDate, reason: reason || null } }, { onSuccess: onClose })
-      }
+      onSubmit={submit}
     >
       <ManagerField value={managerId} onChange={setManagerId} excludeId={employee.id} error={error('managerId')} />
-      <TextField label="Effective date" type="date" required value={effectiveDate} onChange={setEffectiveDate} error={error('effectiveDate')} />
+      <TextField
+        label="Effective date"
+        type="date"
+        required
+        value={effectiveDate}
+        onChange={setEffectiveDate}
+        hint={futureHint}
+        error={error('effectiveDate')}
+      />
       <TextField label="Reason" multiline value={reason} onChange={setReason} />
     </FormDialog>
   )
@@ -192,11 +239,19 @@ export function StatusDialog({ employee, onClose }: { employee: EmployeeDetail; 
   )
 }
 
-export function PersonalDialog({ employee, onClose }: { employee: EmployeeDetail; onClose: () => void }) {
+export function PersonalDialog({
+  employee,
+  personal: current,
+  onClose,
+}: {
+  employee: EmployeeDetail
+  personal: PersonalDetails | undefined
+  onClose: () => void
+}) {
   const update = useUpdatePersonal()
   const [givenName, setGivenName] = useState(employee.givenName)
   const [familyName, setFamilyName] = useState(employee.familyName)
-  const [personal, setPersonal] = useState<PersonalDetails>(employee.personal ?? emptyPersonal)
+  const [personal, setPersonal] = useState<PersonalDetails>(current ?? emptyPersonal)
   const error = fieldErrors(update.error)
 
   return (

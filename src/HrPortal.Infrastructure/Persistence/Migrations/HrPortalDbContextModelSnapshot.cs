@@ -406,6 +406,76 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                     b.ToTable("People", (string)null);
                 });
 
+            modelBuilder.Entity("HrPortal.Domain.Employees.ScheduledJobChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Designation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("GradeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("LegalEntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("NewManagerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("OfficeLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("GradeId");
+
+                    b.HasIndex("LegalEntityId");
+
+                    b.HasIndex("NewManagerId");
+
+                    b.HasIndex("OfficeLocationId");
+
+                    b.HasIndex("Status", "EffectiveDate");
+
+                    b.ToTable("ScheduledJobChanges", (string)null);
+                });
+
             modelBuilder.Entity("HrPortal.Domain.Organisation.CountrySettings", b =>
                 {
                     b.Property<string>("CountryCode")
@@ -722,6 +792,40 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         .HasForeignKey("OfficeLocationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Employees.ScheduledJobChange", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Organisation.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrPortal.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrPortal.Domain.Organisation.Grade", null)
+                        .WithMany()
+                        .HasForeignKey("GradeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrPortal.Domain.Organisation.LegalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrPortal.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("NewManagerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrPortal.Domain.Organisation.OfficeLocation", null)
+                        .WithMany()
+                        .HasForeignKey("OfficeLocationId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("HrPortal.Domain.Organisation.Grade", b =>

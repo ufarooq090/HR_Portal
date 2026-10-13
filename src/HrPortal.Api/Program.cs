@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using HrPortal.Api.Auth;
 using HrPortal.Api.Auth.DevAuth;
+using HrPortal.Api.BackgroundJobs;
 using HrPortal.Api.Employees;
 using HrPortal.Api.Errors;
 using HrPortal.Api.Organisation;
@@ -12,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddHrPortalAuth();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.AddBackgroundJobs();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<DatabaseConflictExceptionHandler>();
@@ -30,6 +32,8 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
         await DevDataSeeder.SeedAsync(db);
     }
 }
+
+app.ScheduleRecurringJobs();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();

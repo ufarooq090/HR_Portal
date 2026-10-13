@@ -204,19 +204,24 @@ public sealed class Employee : Entity
     public void LinkUserAccount(string? userObjectId) =>
         UserObjectId = Guard.OptionalText(nameof(userObjectId), userObjectId, 128);
 
-    private void Place(JobPlacement placement)
+    /// <summary>Legal entity, office and grade must share one country (MC-01).</summary>
+    public static void ValidatePlacement(JobPlacement placement)
     {
-        var (designation, legalEntity, officeLocation, department, grade) = placement;
-        if (officeLocation.CountryCode != legalEntity.CountryCode)
+        if (placement.OfficeLocation.CountryCode != placement.LegalEntity.CountryCode)
         {
             throw new DomainValidationException("officeLocationId", "The office must be in the same country as the legal entity.");
         }
 
-        if (grade is not null && grade.CountryCode != legalEntity.CountryCode)
+        if (placement.Grade is not null && placement.Grade.CountryCode != placement.LegalEntity.CountryCode)
         {
             throw new DomainValidationException("gradeId", "The grade must belong to the employee's country.");
         }
+    }
 
+    private void Place(JobPlacement placement)
+    {
+        ValidatePlacement(placement);
+        var (designation, legalEntity, officeLocation, department, grade) = placement;
         Designation = Guard.RequiredText(nameof(designation), designation, 200);
         CountryCode = legalEntity.CountryCode;
         LegalEntity = legalEntity;

@@ -351,7 +351,7 @@ The company operates in Pakistan and the US, so country is a core setting rather
 | ID | Requirement | Phase |
 | --- | --- | --- |
 | MC-01 | Every employee belongs to a country, legal entity and office location; settings cascade from country to location. | 1 |
-| MC-02 | Compensation stored in local currency (PKR or USD); reports can convert to one reporting currency at an HR-set rate. | 1 |
+| MC-02 | Compensation is stored and always shown in the employee's country currency: PKR for Pakistan, USD for the US. No currency conversion anywhere. Any report or total covering both countries shows separate PKR and USD figures and never adds them together. | 1 |
 | MC-03 | HR access can be limited by country, so a Pakistan HR user sees only Pakistan employees unless granted more. | 1 |
 | MC-04 | Separate letter and email templates per country, picked automatically from the person's country. | 2 |
 | MC-05 | Onboarding document checklists per country (for example CNIC copy in Pakistan; Form I-9 and W-4 in the US). | 2 |
@@ -450,6 +450,10 @@ HR and IT answered the discovery questions on 12 Oct 2026; the requirements abov
 | Compensation for HR Executives (13 Oct 2026) | "Granted only" is a per-person grant set by an HR Admin on the HR data access page | Enforced once compensation records exist (EMP-03) |
 | Organisation structure (13 Oct 2026) | Departments are shared across countries; legal entities, office locations and grades each belong to one country | Department scope (e.g. hiring managers) spans both countries (MC-01) |
 | Default time zones (13 Oct 2026) | Pakistan: Asia/Karachi. US: America/New_York as a placeholder; offices can override the country default | Revisit once the US state(s) of employment are confirmed |
+| Managers and personal details (13 Oct 2026) | Line and hiring managers can see the personal details of their direct and indirect reports: contact info, address, date of birth, emergency contacts. National ID (CNIC/SSN), documents and compensation stay hidden from managers | Every manager view of a team member's personal details is recorded in the audit log (EMP-01, NFR-04) |
+| Terminations (13 Oct 2026) | Only HR Admins can record a termination | Confirmed; applies to the status change as well as termination emails and letters (EMP-04) |
+| Future-dated job changes (13 Oct 2026) | Transfers, promotions, department and manager changes can have a future effective date. They are stored as scheduled, shown as "Upcoming" on the employee record, and HR can edit or cancel them until they take effect | A Hangfire job applies them automatically from local midnight in the employee's office time zone, as an audited system change. The reporting-loop check runs when scheduling and again when applying; a change that can no longer be applied is marked "Not applied" with the reason. Pending changes are cancelled when the employee leaves (EMP-05) |
+| Currency (13 Oct 2026) | Salaries are always shown in the employee's country currency, PKR for Pakistan and USD for the US. No conversion anywhere | Reports and totals covering both countries show separate PKR and USD figures, never added together (MC-02) |
 
 **Still open**
 

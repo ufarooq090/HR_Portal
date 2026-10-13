@@ -136,3 +136,25 @@ internal sealed class HrAccessSettingsConfiguration : IEntityTypeConfiguration<H
         builder.HasOne<Employee>().WithOne().HasForeignKey<HrAccessSettings>(s => s.EmployeeId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class ScheduledJobChangeConfiguration : IEntityTypeConfiguration<ScheduledJobChange>
+{
+    public void Configure(EntityTypeBuilder<ScheduledJobChange> builder)
+    {
+        builder.ToTable("ScheduledJobChanges");
+        builder.Property(c => c.Id).ValueGeneratedNever();
+        builder.Property(c => c.Kind).HasConversion<string>().HasMaxLength(16);
+        builder.Property(c => c.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(c => c.Designation).HasMaxLength(200);
+        builder.Property(c => c.Reason).HasMaxLength(500);
+        builder.Property(c => c.Outcome).HasMaxLength(500);
+        builder.HasOne<Employee>().WithMany().HasForeignKey(c => c.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Employee>().WithMany().HasForeignKey(c => c.NewManagerId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<LegalEntity>().WithMany().HasForeignKey(c => c.LegalEntityId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<OfficeLocation>().WithMany().HasForeignKey(c => c.OfficeLocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Department>().WithMany().HasForeignKey(c => c.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Grade>().WithMany().HasForeignKey(c => c.GradeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(c => new { c.Status, c.EffectiveDate });
+        builder.HasIndex(c => c.EmployeeId);
+    }
+}

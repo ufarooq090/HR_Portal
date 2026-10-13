@@ -10,7 +10,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCi,
   retries: isCi ? 1 : 0,
-  workers: isCi ? 2 : undefined,
+  // The API, Vite and the browsers share one machine; more workers than this slows every test down locally.
+  workers: isCi ? 2 : 4,
+  // Most tests sign in through the UI, often as several users.
+  timeout: 60_000,
   reporter: isCi ? [['list'], ['html', { open: 'never' }]] : 'list',
   // The Vite dev server compiles pages on first request, which is slow while many browsers run in parallel.
   expect: { timeout: 10_000 },

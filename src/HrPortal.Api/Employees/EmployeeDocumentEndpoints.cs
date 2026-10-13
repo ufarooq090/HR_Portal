@@ -12,7 +12,7 @@ namespace HrPortal.Api.Employees;
 
 /// <summary>
 /// EMP-06: ID proofs, certificates, contracts and signed letters, stored via <see cref="IFileStore"/> and only ever
-/// served through this API. Same audience as personal details: HR within their countries and the employee.
+/// served through this API. Confidential: HR within their countries and the employee; never managers.
 /// </summary>
 public static class EmployeeDocumentEndpoints
 {
@@ -26,7 +26,7 @@ public static class EmployeeDocumentEndpoints
         group.MapGet("/", async (Guid id, HrPortalDbContext db, IAccessContext accessContext, CancellationToken ct) =>
             {
                 var access = await accessContext.GetAsync(ct);
-                if (await EmployeeScope.DenyAsync(db, access, id, access.PersonalDataScopesFor(Capability.View), ct) is { } denied)
+                if (await EmployeeScope.DenyAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.View), ct) is { } denied)
                 {
                     return denied;
                 }
@@ -52,7 +52,7 @@ public static class EmployeeDocumentEndpoints
                 CancellationToken ct) =>
             {
                 var access = await accessContext.GetAsync(ct);
-                if (await EmployeeScope.DenyAsync(db, access, id, access.PersonalDataScopesFor(Capability.Edit), ct) is { } denied)
+                if (await EmployeeScope.DenyAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.Edit), ct) is { } denied)
                 {
                     return denied;
                 }
@@ -92,7 +92,7 @@ public static class EmployeeDocumentEndpoints
                 Guid id, Guid documentId, HrPortalDbContext db, IAccessContext accessContext, IFileStore files, IAuditLog audit, CancellationToken ct) =>
             {
                 var access = await accessContext.GetAsync(ct);
-                if (await EmployeeScope.DenyAsync(db, access, id, access.PersonalDataScopesFor(Capability.View), ct) is { } denied)
+                if (await EmployeeScope.DenyAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.View), ct) is { } denied)
                 {
                     return denied;
                 }
@@ -113,7 +113,7 @@ public static class EmployeeDocumentEndpoints
                 Guid id, Guid documentId, HrPortalDbContext db, IAccessContext accessContext, IFileStore files, CancellationToken ct) =>
             {
                 var access = await accessContext.GetAsync(ct);
-                if (await EmployeeScope.DenyAsync(db, access, id, access.PersonalDataScopesFor(Capability.Delete), ct) is { } denied)
+                if (await EmployeeScope.DenyAsync(db, access, id, access.ConfidentialDataScopesFor(Capability.Delete), ct) is { } denied)
                 {
                     return denied;
                 }
