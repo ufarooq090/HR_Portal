@@ -7,6 +7,7 @@ using HrPortal.Domain.Organisation;
 using HrPortal.Domain.Recruiting;
 using HrPortal.Domain.Requisitions;
 using HrPortal.Domain.Security;
+using HrPortal.Domain.Templates;
 using HrPortal.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -66,6 +67,14 @@ public sealed class HrPortalDbContext(DbContextOptions<HrPortalDbContext> option
     public DbSet<CandidateNote> CandidateNotes => Set<CandidateNote>();
 
     public DbSet<ResumeBankStatusChange> ResumeBankStatusChanges => Set<ResumeBankStatusChange>();
+
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+
+    public DbSet<EmailTemplateVersion> EmailTemplateVersions => Set<EmailTemplateVersion>();
+
+    public DbSet<EmailLogEntry> EmailLog => Set<EmailLogEntry>();
+
+    public DbSet<EmailAttachmentUpload> EmailAttachmentUploads => Set<EmailAttachmentUpload>();
 
     /// <summary>Next requisition reference, e.g. REQ-00042, from a database sequence (no gaps in normal use, never reused).</summary>
     public async Task<string> NextRequisitionNumberAsync(CancellationToken ct)

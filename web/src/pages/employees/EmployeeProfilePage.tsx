@@ -24,7 +24,10 @@ import { type ReactNode, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useCancelScheduledChange, useEmployee, useEmployeeHistory, usePersonal } from '../../api/employees'
 import type { EmployeeDetail, ScheduledChange } from '../../api/types'
+import { useMe } from '../../api/queries'
 import { QueryError } from '../../app/QueryError'
+import { isHr } from '../../auth/roles'
+import { EmailHistoryCard, SendEmailDialog } from '../templates/EmailComponents'
 import { CompensationTab } from './CompensationTab'
 import { DocumentsTab } from './DocumentsTab'
 import { JobChangeDialog, ManagerDialog, PersonalDialog, StatusDialog } from './EmployeeDialogs'
@@ -48,8 +51,8 @@ const useStyles = makeStyles({
   upcomingRow: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM, flexWrap: 'wrap' },
 })
 
-type TabId = 'overview' | 'personal' | 'history' | 'compensation' | 'documents'
-type DialogId = 'job' | 'manager' | 'status' | null
+type TabId = 'overview' | 'personal' | 'history' | 'compensation' | 'documents' | 'emails'
+type DialogId = 'job' | 'manager' | 'status' | 'email' | null
 
 function Facts({ items }: { items: [string, ReactNode][] }) {
   const styles = useStyles()
@@ -77,6 +80,7 @@ export function EmployeeProfilePage() {
   const [tab, setTab] = useState<TabId>('overview')
   const [dialog, setDialog] = useState<DialogId>(null)
   const [editing, setEditing] = useState<ScheduledChange | null>(null)
+  const { data: me } = useMe()
 
   if (isLoading) return <Spinner label="Loading…" />
   if (error || !employee) return <QueryError error={error} />
@@ -105,6 +109,7 @@ export function EmployeeProfilePage() {
         <Tab value="history">History</Tab>
         {p.canViewCompensation && <Tab value="compensation">Compensation</Tab>}
         {p.canViewDocuments && <Tab value="documents">Documents</Tab>}
+        {p.canEdit && isHr(me) && <Tab value="emails">Emails</Tab>}
       </TabList>
 
       {tab === 'overview' && <JobTab employee={employee} onAction={setDialog} onEditScheduled={setEditing} />}
@@ -112,6 +117,19 @@ export function EmployeeProfilePage() {
       {tab === 'history' && <HistoryTab employeeId={employee.id} />}
       {tab === 'compensation' && p.canViewCompensation && <CompensationTab employee={employee} />}
       {tab === 'documents' && p.canViewDocuments && <DocumentsTab employee={employee} />}
+      {tab === 'emails' && p.canEdit && isHr(me) && <EmailHistoryCard person={{ employeeId: employee.id }} />}
+      {dialog === 'email' && (
+        <SendEmailDialog
+          record={{
+            recordType: 'Employee',
+            recordId: employee.id,
+            countryCode: employee.countryCode,
+            name: `${employee.givenName} ${employee.familyName}`,
+            historyKey: employee.id,
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
 
       {dialog === 'job' && <JobChangeDialog employee={employee} onClose={() => setDialog(null)} />}
       {dialog === 'manager' && <ManagerDialog employee={employee} onClose={() => setDialog(null)} />}
@@ -136,6 +154,11 @@ function JobTab({
   return (
     <>
       {employee.upcoming.length > 0 && <UpcomingChanges employee={employee} onEdit={onEditScheduled} />}
+      {employee.permissions.canEdit && (
+        <div className={styles.actions}>
+          <Button onClick={() => onAction('email')}>Send email</Button>
+        </div>
+      )}
       {employee.permissions.canEdit && active && (
         <div className={styles.actions}>
           <Button onClick={() => onAction('job')}>Change job</Button>

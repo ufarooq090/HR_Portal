@@ -18,6 +18,10 @@
     "@fluentui/react-components": "^9.74.9",
     "@fluentui/react-icons": "^2.0.344",
     "@tanstack/react-query": "^5.104.2",
+    "@tiptap/core": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.4.0"

@@ -84,6 +84,7 @@ const kindLabels: Record<TimelineKind, string> = {
   status: 'Status',
   note: 'Note',
   employment: 'Employment',
+  email: 'Email',
 }
 
 function Facts({ items }: { items: [string, ReactNode][] }) {

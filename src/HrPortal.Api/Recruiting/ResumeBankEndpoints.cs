@@ -6,6 +6,7 @@ using HrPortal.Domain.Files;
 using HrPortal.Domain.Recruiting;
 using HrPortal.Domain.Requisitions;
 using HrPortal.Domain.Security;
+using HrPortal.Domain.Templates;
 using HrPortal.Infrastructure.Employees;
 using HrPortal.Infrastructure.Persistence;
 using HrPortal.Infrastructure.Recruiting;
@@ -40,7 +41,7 @@ public static class ResumeBankEndpoints
 
     public sealed record SearchResult(int Total, int Page, int PageSize, IReadOnlyList<ResumeBankRow> Items);
 
-    /// <param name="Kind">applied, stage, interview, feedback, status, note, employment.</param>
+    /// <param name="Kind">applied, stage, interview, feedback, status, note, employment, email.</param>
     public sealed record TimelineItem(DateTimeOffset AtUtc, string Kind, string Title, string? Detail, Guid? ApplicationId);
 
     public sealed record ApplicationOutcome(
@@ -411,6 +412,16 @@ public static class ResumeBankEndpoints
             foreach (var note in await db.CandidateNotes.AsNoTracking().Where(n => n.PersonId == person.Id).ToListAsync(ct))
             {
                 timeline.Add(new TimelineItem(note.CreatedAtUtc, "note", $"Note by {note.AuthorName}", note.Body, null));
+            }
+
+            // ET-08: emails sent to the person, as candidate or employee.
+            foreach (var email in await db.EmailLog.AsNoTracking().Where(e => e.PersonId == person.Id).ToListAsync(ct))
+            {
+                var how = email.Status == EmailStatus.Sent ? "Sent" : "Failed";
+                timeline.Add(new TimelineItem(
+                    email.SentAtUtc, "email", $"Email: {email.Subject}",
+                    $"{how} to {email.To} by {email.SentByName}{(email.TemplateName is { } name ? $" ({name})" : string.Empty)}",
+                    email.RecordType == TemplateRecordType.Application ? email.RecordId : null));
             }
 
             foreach (var employee in await db.Employees.AsNoTracking().Where(e => e.PersonId == person.Id).ToListAsync(ct))

@@ -20,4 +20,13 @@ public static class LocalCalendar
             System.Globalization.CultureInfo.InvariantCulture,
             $@"{local:ddd d MMM yyyy, HH:mm} {timeZone} (UTC{sign}{offset.Duration():hh\:mm})");
     }
+
+    /// <summary>The local date part of <see cref="Format"/>: "Wed 15 Jan 2030".</summary>
+    public static string FormatDate(DateTimeOffset moment, string timeZone) => Format(moment, timeZone).Split(", ", 2)[0];
+
+    /// <summary>The local time part of <see cref="Format"/>, with the zone: "15:00 Asia/Karachi (UTC+05:00)".</summary>
+    public static string FormatTime(DateTimeOffset moment, string timeZone) => Format(moment, timeZone).Split(", ", 2)[1];
+
+    /// <summary>A calendar date as written in emails: "15 Jan 2030".</summary>
+    public static string FormatDate(DateOnly date) => date.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
 }

@@ -4,6 +4,7 @@ using HrPortal.Domain.Files;
 using HrPortal.Domain.Recruiting;
 using HrPortal.Infrastructure.Employees;
 using HrPortal.Infrastructure.Recruiting;
+using HrPortal.Infrastructure.Templates;
 using HrPortal.Infrastructure.Files;
 using HrPortal.Domain.Notifications;
 using HrPortal.Domain.Security;
@@ -51,6 +52,7 @@ public static class DependencyInjection
         services.AddScoped<NotificationEmailJob>();
         services.AddSingleton<ICvTextExtractor, CvTextExtractor>();
         services.AddScoped<CvTextBackfill>();
+        services.AddScoped<EmailService>();
         services.AddScoped<CandidateImporter>();
 
         // Microsoft Graph implementations replace these for deployed environments.

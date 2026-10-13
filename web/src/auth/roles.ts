@@ -74,3 +74,18 @@ export function canUseResumeBank(user: UserLike): boolean {
 export function canImportCandidates(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive)
 }
+
+/** Email Templates in the permission matrix: HR Admins create and edit templates. */
+export function canManageTemplates(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin)
+}
+
+/** HR and hiring managers (interview emails only) send emails from templates. */
+export function canUseTemplates(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive, Roles.HiringManager)
+}
+
+/** HR see templates in the navigation and the email history on records. */
+export function isHr(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive)
+}

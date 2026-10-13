@@ -10,8 +10,16 @@ public sealed class RecordingEmailSender : IEmailSender
 {
     public ConcurrentQueue<EmailMessage> Sent { get; } = new();
 
+    /// <summary>Addresses the "mail server" rejects, to test failed sends.</summary>
+    public ConcurrentDictionary<string, bool> Bounce { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
+        if (message.To.Any(Bounce.ContainsKey))
+        {
+            throw new System.Net.Mail.SmtpFailedRecipientException("Mailbox unavailable");
+        }
+
         Sent.Enqueue(message);
         return Task.CompletedTask;
     }

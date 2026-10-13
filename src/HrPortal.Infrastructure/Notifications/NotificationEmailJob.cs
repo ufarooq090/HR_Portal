@@ -12,6 +12,14 @@ public sealed class PortalOptions
 
     /// <summary>Public address of the web app, used for links in emails, e.g. https://hr.example.com.</summary>
     public string BaseUrl { get; set; } = string.Empty;
+
+    /// <summary>Used for {{company_name}} where no legal entity applies (candidates, requisitions).</summary>
+    public string CompanyName { get; set; } = string.Empty;
+
+    /// <summary>The shared HR mailbox emails are sent from (OL-02), e.g. hr@company.com.</summary>
+    public string HrMailboxAddress { get; set; } = string.Empty;
+
+    public string HrMailboxName { get; set; } = "HR";
 }
 
 /// <summary>

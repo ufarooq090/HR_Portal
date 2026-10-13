@@ -644,7 +644,7 @@ export interface ResumeBankSearchResult {
   items: ResumeBankRow[]
 }
 
-export type TimelineKind = 'applied' | 'stage' | 'interview' | 'feedback' | 'status' | 'note' | 'employment'
+export type TimelineKind = 'applied' | 'stage' | 'interview' | 'feedback' | 'status' | 'note' | 'employment' | 'email'
 
 export interface TimelineItem {
   atUtc: string

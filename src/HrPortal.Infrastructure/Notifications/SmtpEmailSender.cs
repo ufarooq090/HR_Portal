@@ -24,7 +24,7 @@ public sealed class SmtpEmailSender(IOptions<SmtpEmailOptions> options) : IEmail
         var settings = options.Value;
         using var mail = new MailMessage
         {
-            From = new MailAddress(settings.FromAddress, settings.FromName),
+            From = message.From is { } from ? new MailAddress(from.Address, from.Name) : new MailAddress(settings.FromAddress, settings.FromName),
             Subject = message.Subject,
             Body = message.HtmlBody,
             IsBodyHtml = true,

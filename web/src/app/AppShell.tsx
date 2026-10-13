@@ -19,6 +19,7 @@ import {
   CalendarPersonRegular,
   DismissCircleRegular,
   DocumentSearchRegular,
+  MailTemplateRegular,
   PersonSearchRegular,
   DocumentAddRegular,
   FlowRegular,
@@ -37,7 +38,7 @@ import { NavLink, Outlet } from 'react-router'
 import { useMe } from '../api/queries'
 import { useAuth } from '../auth/AuthContext'
 import { useMyInterviews } from '../api/recruiting'
-import { canManageHrAccess, canUseCandidates, canUseRequisitions, canUseResumeBank, hasAnyRole, Roles, showsSettings } from '../auth/roles'
+import { canManageHrAccess, canUseCandidates, canUseRequisitions, canUseResumeBank, canUseTemplates, hasAnyRole, Roles, showsSettings } from '../auth/roles'
 import { NotificationBell } from './NotificationBell'
 
 const useStyles = makeStyles({
@@ -167,6 +168,11 @@ export function AppShell() {
         {canUseResumeBank(me) && (
           <NavItem to="/resume-bank" icon={<DocumentSearchRegular />}>
             Resume Bank
+          </NavItem>
+        )}
+        {canUseTemplates(me) && (
+          <NavItem to="/templates" icon={<MailTemplateRegular />}>
+            Email templates
           </NavItem>
         )}
         {(hasAnyRole(me, Roles.Interviewer) || (myInterviews?.length ?? 0) > 0) && (

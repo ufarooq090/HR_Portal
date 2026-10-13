@@ -8,6 +8,7 @@ using HrPortal.Api.Notifications;
 using HrPortal.Api.Organisation;
 using HrPortal.Api.Recruiting;
 using HrPortal.Api.Requisitions;
+using HrPortal.Api.Templates;
 using HrPortal.Domain.Files;
 using HrPortal.Domain.Notifications;
 using HrPortal.Infrastructure;
@@ -22,6 +23,7 @@ builder.AddBackgroundJobs();
 builder.Services.AddScoped<INotificationEmailQueue, HangfireNotificationEmailQueue>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<EmailExceptionHandler>();
 builder.Services.AddExceptionHandler<DatabaseConflictExceptionHandler>();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
@@ -47,6 +49,13 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 
 app.ScheduleRecurringJobs();
 await app.EnqueueOneTimeJobsAsync();
+
+// ET: the starter email templates from the spec, added once in every environment (never overwriting HR's edits).
+using (var scope = app.Services.CreateScope())
+{
+    await HrPortal.Infrastructure.Templates.StarterTemplateSeeder.SeedAsync(
+        scope.ServiceProvider.GetRequiredService<HrPortalDbContext>(), scope.ServiceProvider.GetRequiredService<TimeProvider>());
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -80,6 +89,8 @@ app.MapCandidateEndpoints();
 app.MapApplicationEndpoints();
 app.MapRejectionReasonEndpoints();
 app.MapResumeBankEndpoints();
+app.MapEmailTemplateEndpoints();
+app.MapEmailEndpoints();
 
 await app.RunAsync();
 

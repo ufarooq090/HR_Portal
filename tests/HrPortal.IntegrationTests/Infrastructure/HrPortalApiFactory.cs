@@ -34,6 +34,8 @@ public sealed class HrPortalApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("FieldEncryption:ActiveKeyId", "test");
         builder.UseSetting("FieldEncryption:Keys:test", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         builder.UseSetting("Portal:BaseUrl", "https://hr.test");
+        builder.UseSetting("Portal:HrMailboxAddress", "hr@hr.test");
+        builder.UseSetting("Portal:CompanyName", "HR Portal Test Co");
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IFileStore>(Files);

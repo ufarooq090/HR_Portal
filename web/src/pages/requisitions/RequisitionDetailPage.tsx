@@ -23,7 +23,7 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components'
-import { CheckmarkRegular, DismissRegular, EditRegular, PeopleTeamRegular, SendRegular } from '@fluentui/react-icons'
+import { CheckmarkRegular, DismissRegular, EditRegular, MailRegular, PeopleTeamRegular, SendRegular } from '@fluentui/react-icons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
@@ -37,7 +37,8 @@ import {
 import type { RequisitionDetail, RequisitionStatus } from '../../api/types'
 import { useMe } from '../../api/queries'
 import { QueryError } from '../../app/QueryError'
-import { canUseCandidates } from '../../auth/roles'
+import { canUseCandidates, isHr } from '../../auth/roles'
+import { SendEmailDialog } from '../templates/EmailComponents'
 import { TextField } from '../employees/fields'
 import { formatDate, label } from '../employees/format'
 import { budgetRange, decisionColor, requisitionStatusColor, statusActionLabel } from './requisitionFormat'
@@ -65,6 +66,7 @@ export function RequisitionDetailPage() {
   const { data: me } = useMe()
   const submit = useSubmitRequisition()
   const [pending, setPending] = useState<Pending | null>(null)
+  const [emailing, setEmailing] = useState(false)
 
   if (isLoading) return <Spinner label="Loading…" />
   if (error || !r) return <QueryError error={error} />
@@ -107,6 +109,11 @@ export function RequisitionDetailPage() {
           </Button>
         )}
         {p.canWithdraw && <Button onClick={() => setPending({ kind: 'withdraw' })}>Withdraw</Button>}
+        {isHr(me) && r.status === 'PendingApproval' && (
+          <Button icon={<MailRegular />} onClick={() => setEmailing(true)}>
+            Email approver
+          </Button>
+        )}
         {canUseCandidates(me) && r.status !== 'Draft' && r.status !== 'PendingApproval' && (
           <Button appearance="primary" icon={<PeopleTeamRegular />} onClick={() => navigate(`/requisitions/${r.id}/pipeline`)}>
             Candidates
@@ -119,6 +126,12 @@ export function RequisitionDetailPage() {
         ))}
       </div>
       {submit.error && <QueryError error={submit.error} />}
+      {emailing && (
+        <SendEmailDialog
+          record={{ recordType: 'Requisition', recordId: r.id, countryCode: r.countryCode, name: `the approver of ${r.number}` }}
+          onClose={() => setEmailing(false)}
+        />
+      )}
 
       <dl className={styles.facts}>
         {(

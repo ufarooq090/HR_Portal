@@ -12,11 +12,13 @@ and reference requirement IDs in test names and commit messages.
 
 - Backend: ASP.NET Core on .NET 10 (LTS), C#, minimal APIs grouped by module
 - Database: PostgreSQL 16+ via EF Core 10 (Npgsql), code-first migrations
-- Frontend: React + TypeScript (Vite), Fluent UI React v9, TanStack Query, React Router
+- Frontend: React + TypeScript (Vite), Fluent UI React v9, TanStack Query, React Router;
+  Tiptap (`@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/core`, pinned) for rich-text editing
 - Auth: Microsoft Entra ID (Microsoft.Identity.Web on the API, MSAL in the SPA)
 - Email/calendar: Microsoft Graph SDK, behind interfaces (see Integrations)
 - Files: Azure Blob Storage (Azurite locally) via `Azure.Storage.Blobs`
 - Spreadsheets: `ClosedXML` for .xlsx import/export (not EPPlus), `CsvHelper` for .csv import
+- Email HTML sanitising: `HtmlSanitizer` (Ganss.Xss) with a strict allowlist, server-side, before storing and sending
 - CV text extraction (Resume Bank search): UglyToad PdfPig for PDF (NuGet id `PdfPig`, the official stable
   release; the `UglyToad.PdfPig` id only has unofficial prereleases), `DocumentFormat.OpenXml` for Word
 - Background jobs: Hangfire (PostgreSQL storage), hosted in the API process
@@ -84,6 +86,10 @@ DevAuth environments seed an organisation and an employee record per dev user (`
 Wrap every external system in an interface so it can be faked locally and in tests:
 `IEmailSender`, `ICalendarService`, `IFileStore`, `IPdfRenderer`, `IAttendanceImporter`.
 - Local/dev: email goes to Mailpit, calendar calls are logged, files go to Azurite.
+- Template emails (ET) go through `EmailService` → `IEmailSender`; the sender mailbox (shared HR mailbox from
+  `Portal:HrMailboxAddress`, or the user's own) is stored per template now and used by Outlook sending in Phase 2.
+  Set `Portal:CompanyName` in every environment: candidate and requisition emails use it for {{company_name}}
+  (otherwise only a country with exactly one legal entity can fill it, and a missing value blocks sending).
 - Never call the company's live Microsoft 365 tenant from tests. Use a Microsoft 365 developer tenant.
 - Biometric attendance arrives as export files from the devices (format still to be confirmed);
   build the importer against a parser interface so the format can be plugged in later.

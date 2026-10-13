@@ -32,7 +32,7 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components'
-import { ArrowDownloadRegular, ArrowUploadRegular, CalendarAddRegular, EditRegular, EyeOffRegular } from '@fluentui/react-icons'
+import { ArrowDownloadRegular, ArrowUploadRegular, CalendarAddRegular, EditRegular, EyeOffRegular, MailRegular } from '@fluentui/react-icons'
 import { type ReactNode, useId, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { ApiError, saveFile } from '../../api/client'
@@ -49,7 +49,10 @@ import {
   useUploadCv,
 } from '../../api/recruiting'
 import type { ApplicationDetail, InterviewMode, InterviewView, MoneyAmount, Recommendation } from '../../api/types'
+import { useMe } from '../../api/queries'
 import { QueryError } from '../../app/QueryError'
+import { canUseTemplates, isHr } from '../../auth/roles'
+import { EmailHistoryCard, SendEmailDialog } from '../templates/EmailComponents'
 import { SelectField, TextField } from '../employees/fields'
 import { formatBytes, formatMoney, label } from '../employees/format'
 import { moveTargets, stageLabel, type StageTarget } from './pipeline'
@@ -99,11 +102,15 @@ export function ApplicationPage() {
   const [moving, setMoving] = useState<StageTarget | null>(null)
   const [scheduling, setScheduling] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [emailing, setEmailing] = useState(false)
+  const { data: me } = useMe()
 
   if (isLoading) return <Spinner label="Loading…" />
   if (error || !a) return <QueryError error={error} />
   const p = a.permissions
   const c = a.candidate
+  // HR, and the hiring manager for interview emails (the server enforces which templates).
+  const canEmail = canUseTemplates(me) && (p.canManage || p.canSeeNotes)
 
   return (
     <section className={styles.page}>
@@ -116,8 +123,18 @@ export function ApplicationPage() {
         <Title2 as="h1">{c.name}</Title2>
         <StageBadge stage={a.stage} round={a.interviewRound} />
       </div>
+      {canEmail && !p.canManage && (
+        <div className={styles.actions}>
+          <Button icon={<MailRegular />} onClick={() => setEmailing(true)}>
+            Send email
+          </Button>
+        </div>
+      )}
       {p.canManage && (
         <div className={styles.actions}>
+          <Button icon={<MailRegular />} onClick={() => setEmailing(true)}>
+            Send email
+          </Button>
           <Menu>
             <MenuTrigger disableButtonEnhancement>
               <Button appearance="primary">Move to…</Button>
@@ -170,6 +187,8 @@ export function ApplicationPage() {
 
       {p.canSeeNotes && <NotesSection detail={a} />}
 
+      {p.canManage && isHr(me) && <EmailHistoryCard person={{ personId: c.personId }} />}
+
       {a.history.length > 0 && (
         <div className={styles.tableWrap}>
           <Table aria-label="Stage history">
@@ -201,6 +220,12 @@ export function ApplicationPage() {
       {moving && <MoveDialog applicationId={a.id} candidateName={c.name} target={moving} onClose={() => setMoving(null)} />}
       {scheduling && <ScheduleDialog detail={a} onClose={() => setScheduling(false)} />}
       {editing && <EditCandidateDialog detail={a} onClose={() => setEditing(false)} />}
+      {emailing && (
+        <SendEmailDialog
+          record={{ recordType: 'Application', recordId: a.id, name: c.name, historyKey: c.personId }}
+          onClose={() => setEmailing(false)}
+        />
+      )}
     </section>
   )
 }

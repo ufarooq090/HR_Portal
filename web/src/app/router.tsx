@@ -5,6 +5,8 @@ import { NotFoundPage } from '../pages/NotFoundPage'
 import { ImportCandidatesPage } from '../pages/resumeBank/ImportCandidatesPage'
 import { ResumeBankPage } from '../pages/resumeBank/ResumeBankPage'
 import { ResumeBankProfilePage } from '../pages/resumeBank/ResumeBankProfilePage'
+import { TemplateEditorPage } from '../pages/templates/TemplateEditorPage'
+import { TemplatesPage } from '../pages/templates/TemplatesPage'
 import {
   CountriesPage,
   DepartmentsPage,
@@ -48,6 +50,9 @@ export const router = createBrowserRouter([
       { path: 'resume-bank', element: <ResumeBankPage /> },
       { path: 'resume-bank/import', element: <ImportCandidatesPage /> },
       { path: 'resume-bank/:personId', element: <ResumeBankProfilePage /> },
+      { path: 'templates', element: <TemplatesPage /> },
+      { path: 'templates/new', element: <TemplateEditorPage /> },
+      { path: 'templates/:id', element: <TemplateEditorPage /> },
       { path: 'settings/rejection-reasons', element: <RejectionReasonsPage /> },
       { path: 'settings/approval-chains', element: <ApprovalChainsPage /> },
       { path: 'settings/countries', element: <CountriesPage /> },

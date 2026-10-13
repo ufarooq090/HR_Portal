@@ -1,6 +1,7 @@
 import {
   Body1,
   Button,
+  Checkbox,
   SearchBox,
   Spinner,
   Table,
@@ -13,11 +14,15 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components'
+import { MailRegular } from '@fluentui/react-icons'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useCandidates, useMyInterviews } from '../../api/recruiting'
 import { type CandidateSource, candidateSources, exitStages, type PipelineStage, pipelineStages } from '../../api/types'
+import { useMe } from '../../api/queries'
 import { QueryError } from '../../app/QueryError'
+import { isHr } from '../../auth/roles'
+import { BulkEmailDialog } from '../templates/EmailComponents'
 import { SelectField } from '../employees/fields'
 import { formatDate, label } from '../employees/format'
 import { daysSince, stageLabel } from './pipeline'
@@ -37,6 +42,18 @@ export function CandidatesPage() {
   const [stage, setStage] = useState('')
   const [source, setSource] = useState('')
   const { data, isLoading, error } = useCandidates({ search, stage: (stage || undefined) as PipelineStage | undefined, source: (source || undefined) as CandidateSource | undefined })
+  const { data: me } = useMe()
+  const canBulk = isHr(me)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [emailing, setEmailing] = useState(false)
+  const visible = data?.filter((a) => selected.has(a.id)).map((a) => a.id) ?? []
+  const toggle = (id: string, on: boolean) =>
+    setSelected((s) => {
+      const next = new Set(s)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(input.trim()), 250)
@@ -61,11 +78,28 @@ export function CandidatesPage() {
       {isLoading && <Spinner label="Loading candidates…" />}
       {error && <QueryError error={error} />}
       {data && data.length === 0 && <Body1>No candidates.</Body1>}
+      {canBulk && data && data.length > 0 && (
+        <div>
+          <Button icon={<MailRegular />} disabled={visible.length === 0} onClick={() => setEmailing(true)}>
+            Email selected ({visible.length})
+          </Button>
+        </div>
+      )}
+      {emailing && <BulkEmailDialog applicationIds={visible} onClose={() => setEmailing(false)} />}
       {data && data.length > 0 && (
         <div className={styles.tableWrap}>
           <Table aria-label="Candidates">
             <TableHeader>
               <TableRow>
+                {canBulk && (
+                  <TableHeaderCell>
+                    <Checkbox
+                      aria-label="Select all candidates"
+                      checked={visible.length === 0 ? false : visible.length === data.length ? true : 'mixed'}
+                      onChange={(_, d) => setSelected(d.checked ? new Set(data.map((a) => a.id)) : new Set())}
+                    />
+                  </TableHeaderCell>
+                )}
                 <TableHeaderCell>Candidate</TableHeaderCell>
                 <TableHeaderCell>Requisition</TableHeaderCell>
                 <TableHeaderCell>Stage</TableHeaderCell>
@@ -77,6 +111,11 @@ export function CandidatesPage() {
             <TableBody>
               {data.map((a) => (
                 <TableRow key={a.id}>
+                  {canBulk && (
+                    <TableCell>
+                      <Checkbox aria-label={`Select ${a.candidateName}`} checked={selected.has(a.id)} onChange={(_, d) => toggle(a.id, !!d.checked)} />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Link to={`/applications/${a.id}`}>{a.candidateName}</Link>
                   </TableCell>
