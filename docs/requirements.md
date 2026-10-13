@@ -446,6 +446,10 @@ HR and IT answered the discovery questions on 12 Oct 2026; the requirements abov
 | Letter signing | E-signature and physical signature both acceptable | Both supported on every letter (ON-05) |
 | Existing data | HR maintains Excel sheets | Excel import for employees and candidates (EMP-07, RB-12) |
 | HR users | 10 | Well within NFR-09 limits |
+| HR country access (13 Oct 2026) | HR Admins see every country by default; HR Executives see only their home country. An HR Admin can narrow or widen this per person, but never for themselves and never beyond their own countries | Reconciles the HR Admin "Full" access in the permission table with MC-03 |
+| Compensation for HR Executives (13 Oct 2026) | "Granted only" is a per-person grant set by an HR Admin on the HR data access page | Enforced once compensation records exist (EMP-03) |
+| Organisation structure (13 Oct 2026) | Departments are shared across countries; legal entities, office locations and grades each belong to one country | Department scope (e.g. hiring managers) spans both countries (MC-01) |
+| Default time zones (13 Oct 2026) | Pakistan: Asia/Karachi. US: America/New_York as a placeholder; offices can override the country default | Revisit once the US state(s) of employment are confirmed |
 
 **Still open**
 
@@ -454,6 +458,6 @@ HR and IT answered the discovery questions on 12 Oct 2026; the requirements abov
 - [ ] HR to confirm the payroll system and its import format.
 - [ ] IT to share the biometric device make, model and a sample export file.
 - [ ] Rating scale and review form for each team (goals, KPIs or competencies).
-- [ ] Which US state(s) employees work in; state law affects leave, final pay and letter wording.
+- [ ] Which US state(s) employees work in; state law affects leave, final pay, letter wording and the US default time zone.
 - [ ] Legal review of letter wording and data retention under Pakistani and US law.
 - [ ] Are the Pakistan and US operations separate legal entities? This affects letterhead, payroll export and reports.
