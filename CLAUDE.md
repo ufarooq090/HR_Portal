@@ -105,7 +105,8 @@ dotnet build                               # warnings are errors (Directory.Buil
 dotnet test
 dotnet ef migrations add <Name> -p src/HrPortal.Infrastructure -s src/HrPortal.Api
 dotnet run --project src/HrPortal.Api      # Development: DevAuth on, migrations applied on startup
-                                           # DevAuth: send header X-Dev-User: dev-<pk|us>-<role>, e.g. dev-pk-hradmin
+                                           # DevAuth: send header X-Dev-User: dev-<pk|us>-<role>, e.g. dev-pk-hradmin,
+                                           # or dev-ceo (default requisition approver)
 cd web && npm install && npm run dev       # http://localhost:5173, proxies /api to :5195; DevAuth user picker
 cd web && npm run lint && npm test && npm run build   # oxlint, Vitest, tsc + vite build
 cd e2e && npm install && npx playwright install chromium   # one-time

@@ -1,6 +1,7 @@
 using HrPortal.Domain.Common;
 using HrPortal.Domain.Employees;
 using HrPortal.Domain.Organisation;
+using HrPortal.Domain.Requisitions;
 using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -23,10 +24,63 @@ public static class DevDataSeeder
 {
     public static async Task SeedAsync(HrPortalDbContext db, CancellationToken ct = default)
     {
-        if (await db.Employees.AnyAsync(e => e.UserObjectId == DevUsers.All[0].Id, ct))
+        if (!await db.Employees.AnyAsync(e => e.UserObjectId == DevUsers.ByRole[0].Id, ct))
         {
-            return;
+            await SeedOrganisationAndPeopleAsync(db, ct);
         }
+
+        // Added after the first seed, so it also runs against databases seeded by earlier versions.
+        await SeedCeoAndApprovalChainsAsync(db, ct);
+    }
+
+    /// <summary>
+    /// The CEO (PK-0010, Executive department, no manager) is the single default requisition approver in both
+    /// countries, matching HR's default approval chain (REQ-02).
+    /// </summary>
+    private static async Task SeedCeoAndApprovalChainsAsync(HrPortalDbContext db, CancellationToken ct)
+    {
+        var ceo = await db.Employees.SingleOrDefaultAsync(e => e.UserObjectId == DevUsers.Ceo.Id, ct);
+        if (ceo is null)
+        {
+            var executive = await db.Departments.SingleOrDefaultAsync(d => d.Code == "EXE", ct)
+                ?? db.Departments.Add(new Department("EXE", "Executive")).Entity;
+            var country = await db.CountrySettings.SingleAsync(c => c.CountryCode == "PK", ct);
+            var grade = await db.Grades.SingleAsync(g => g.CountryCode == "PK" && g.Code == "G3", ct);
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var terms = EmploymentTerms.For(country, grade);
+            ceo = Employee.Create(
+                new Person("Dev", "CEO"),
+                "PK-0010",
+                DevUsers.Ceo.Email,
+                EmploymentType.Permanent,
+                new JobPlacement(
+                    "Chief Executive Officer",
+                    await db.LegalEntities.SingleAsync(e => e.Name == "HR Portal Dev (Pvt) Ltd", ct),
+                    await db.OfficeLocations.SingleAsync(o => o.Name == "Lahore Office", ct),
+                    executive,
+                    grade),
+                null,
+                new DateOnly(2023, 1, 2),
+                terms);
+            ceo.ChangeStatus(EmploymentStatus.Confirmed, ceo.ProbationEndDate!.Value, null, terms, "Probation completed", today);
+            ceo.LinkUserAccount(DevUsers.Ceo.Id);
+            db.People.Add(ceo.Person);
+            db.Employees.Add(ceo);
+        }
+
+        foreach (var code in await db.CountrySettings.Select(c => c.CountryCode).Where(c => c == "PK" || c == "US").ToListAsync(ct))
+        {
+            if (!await db.ApprovalChains.AnyAsync(c => c.CountryCode == code, ct))
+            {
+                db.ApprovalChains.Add(new ApprovalChain(code, [("CEO", ceo)]));
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedOrganisationAndPeopleAsync(HrPortalDbContext db, CancellationToken ct)
+    {
 
         var departments = new Dictionary<string, Department>();
         foreach (var (code, name) in new[] { ("ENG", "Engineering"), ("HR", "Human Resources"), ("FIN", "Finance"), ("IT", "Information Technology") })
@@ -100,7 +154,7 @@ public static class DevDataSeeder
 
             Employee AddDevUser(string role, string jobTitle, string department, Grade grade, Employee? reportsTo)
             {
-                var user = DevUsers.All.Single(u => u.CountryCode == country && u.Roles[0] == role);
+                var user = DevUsers.Find(DevUsers.IdFor(role, country))!;
                 return Add("Dev", user.DisplayName["Dev ".Length..], user.Email, jobTitle, department, grade, reportsTo, user.Id);
             }
 

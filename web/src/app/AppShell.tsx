@@ -16,6 +16,8 @@ import {
 } from '@fluentui/react-components'
 import {
   BuildingBankRegular,
+  DocumentAddRegular,
+  FlowRegular,
   GlobeRegular,
   HomeRegular,
   LocationRegular,
@@ -24,12 +26,14 @@ import {
   RibbonRegular,
   ShieldKeyholeRegular,
   SignOutRegular,
+  TaskListLtrRegular,
 } from '@fluentui/react-icons'
 import type { ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useMe } from '../api/queries'
 import { useAuth } from '../auth/AuthContext'
-import { canManageHrAccess, showsSettings } from '../auth/roles'
+import { canManageHrAccess, canUseRequisitions, hasAnyRole, Roles, showsSettings } from '../auth/roles'
+import { NotificationBell } from './NotificationBell'
 
 const useStyles = makeStyles({
   root: {
@@ -49,6 +53,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForegroundOnBrand,
   },
   userButton: { color: tokens.colorNeutralForegroundOnBrand },
+  headerActions: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS },
   nav: {
     display: 'flex',
     flexDirection: 'column',
@@ -105,6 +110,8 @@ export function AppShell() {
             DevAuth
           </Badge>
         )}
+        <div className={styles.headerActions}>
+        <NotificationBell />
         <Menu>
           <MenuTrigger disableButtonEnhancement>
             <MenuButton
@@ -131,6 +138,7 @@ export function AppShell() {
             </MenuList>
           </MenuPopover>
         </Menu>
+        </div>
       </header>
 
       <nav className={styles.nav} aria-label="Main">
@@ -140,6 +148,16 @@ export function AppShell() {
         <NavItem to="/people" icon={<PeopleRegular />}>
           People
         </NavItem>
+        {canUseRequisitions(me) && (
+          <NavItem to="/requisitions" icon={<DocumentAddRegular />}>
+            Requisitions
+          </NavItem>
+        )}
+        {me?.isApprover && (
+          <NavItem to="/approvals" icon={<TaskListLtrRegular />}>
+            Approvals
+          </NavItem>
+        )}
         {showsSettings(me) && (
           <>
             <Text size={200} weight="semibold" className={styles.navSection}>
@@ -160,6 +178,11 @@ export function AppShell() {
             <NavItem to="/settings/grades" icon={<RibbonRegular />}>
               Grades
             </NavItem>
+            {hasAnyRole(me, Roles.HrAdmin, Roles.HrExecutive) && (
+              <NavItem to="/settings/approval-chains" icon={<FlowRegular />}>
+                Approval chains
+              </NavItem>
+            )}
             {canManageHrAccess(me) && (
               <NavItem to="/settings/hr-access" icon={<ShieldKeyholeRegular />}>
                 HR data access

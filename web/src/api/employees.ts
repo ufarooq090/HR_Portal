@@ -46,7 +46,11 @@ export function useEmployees(filters: EmployeeFilters = {}) {
 }
 
 export function useEmployee(id: string) {
-  return useQuery({ queryKey: employeeKeys.detail(id), queryFn: () => api.get<EmployeeDetail>(`/api/employees/${encodeURIComponent(id)}`) })
+  return useQuery({
+    queryKey: employeeKeys.detail(id),
+    queryFn: () => api.get<EmployeeDetail>(`/api/employees/${encodeURIComponent(id)}`),
+    enabled: id !== '',
+  })
 }
 
 export function useEmployeeHistory(id: string) {

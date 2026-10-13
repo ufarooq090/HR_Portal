@@ -32,6 +32,11 @@ export function canCreateEmployees(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive)
 }
 
+/** Requisitions in the permission matrix: HR (full) and hiring/line managers (own department). */
+export function canUseRequisitions(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive, Roles.HiringManager, Roles.LineManager)
+}
+
 /** Matches the API's ManageHrAccess policy. */
 export function canManageHrAccess(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin)

@@ -107,7 +107,7 @@ public class EmployeeScopeTests(HrPortalApiFactory factory)
         await using (await factory.SetHrAccessAsync("dev-pk-hrexecutive", CountryScope.Of(["PK", "US"])))
         {
             var all = await client.GetFromJsonAsync<List<EmployeeSummary>>("/api/employees");
-            Assert.Equal(18, all!.Count(e => SeedData.IsSeeded(e.EmployeeNumber)));
+            Assert.Equal(19, all!.Count(e => SeedData.IsSeeded(e.EmployeeNumber)));
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/employees/{usEmployee}")).StatusCode);
         }
 

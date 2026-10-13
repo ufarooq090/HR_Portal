@@ -78,7 +78,7 @@ export function DevSignInPage({ onSignIn }: { onSignIn: (userId: string) => void
                   onClick={() => onSignIn(user.id)}
                   aria-label={`Sign in as ${user.displayName}`}
                 >
-                  <span>{user.roles[0]}</span>
+                  <span>{user.displayName.replace(/^Dev /, '').replace(/ \([A-Z]{2}\)$/, '')}</span>
                   <Badge appearance="outline" color="informative">
                     {user.id}
                   </Badge>

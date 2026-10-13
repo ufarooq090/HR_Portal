@@ -2,7 +2,9 @@ using System.Reflection;
 using HrPortal.Domain.Audit;
 using HrPortal.Domain.Common;
 using HrPortal.Domain.Employees;
+using HrPortal.Domain.Notifications;
 using HrPortal.Domain.Organisation;
+using HrPortal.Domain.Requisitions;
 using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +40,23 @@ public sealed class HrPortalDbContext(DbContextOptions<HrPortalDbContext> option
 
     public DbSet<ScheduledJobChange> ScheduledJobChanges => Set<ScheduledJobChange>();
 
+    public DbSet<Requisition> Requisitions => Set<Requisition>();
+
+    public DbSet<RequisitionApproval> RequisitionApprovals => Set<RequisitionApproval>();
+
+    public DbSet<ApprovalChain> ApprovalChains => Set<ApprovalChain>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    /// <summary>Next requisition reference, e.g. REQ-00042, from a database sequence (no gaps in normal use, never reused).</summary>
+    public async Task<string> NextRequisitionNumberAsync(CancellationToken ct)
+    {
+        var next = await Database
+            .SqlQueryRaw<long>($"""SELECT nextval('{Configurations.RequisitionConfiguration.NumberSequence}') AS "Value" """)
+            .SingleAsync(ct);
+        return $"REQ-{next:D5}";
+    }
+
     /// <summary>
     /// Ids of everyone who reports to <paramref name="managerId"/>, directly or indirectly. Composable: use it
     /// inside other queries so team scoping runs in the database (function created by a migration).
@@ -47,6 +66,7 @@ public sealed class HrPortalDbContext(DbContextOptions<HrPortalDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasSequence<long>(Configurations.RequisitionConfiguration.NumberSequence);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HrPortalDbContext).Assembly);
         ApplySensitiveFieldEncryption(modelBuilder);
     }

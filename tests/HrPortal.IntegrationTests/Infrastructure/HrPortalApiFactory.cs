@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using HrPortal.Api.Auth.DevAuth;
 using HrPortal.Domain.Files;
+using HrPortal.Domain.Notifications;
 using Microsoft.AspNetCore.TestHost;
 using HrPortal.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
@@ -32,10 +33,18 @@ public sealed class HrPortalApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("BackgroundJobs:RunServer", "false");
         builder.UseSetting("FieldEncryption:ActiveKeyId", "test");
         builder.UseSetting("FieldEncryption:Keys:test", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
-        builder.ConfigureTestServices(services => services.AddSingleton<IFileStore>(Files));
+        builder.UseSetting("Portal:BaseUrl", "https://hr.test");
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IFileStore>(Files);
+            services.AddSingleton<IEmailSender>(Emails);
+            services.AddSingleton<INotificationEmailQueue, InlineNotificationEmailQueue>();
+        });
     }
 
     public InMemoryFileStore Files { get; } = new();
+
+    public RecordingEmailSender Emails { get; } = new();
 
     /// <summary>HTTP client signed in as a seeded dev user, e.g. <c>dev-pk-hradmin</c>.</summary>
     public HttpClient CreateClientAs(string devUserId)

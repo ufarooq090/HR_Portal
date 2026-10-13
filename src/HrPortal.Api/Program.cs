@@ -4,7 +4,10 @@ using HrPortal.Api.Auth.DevAuth;
 using HrPortal.Api.BackgroundJobs;
 using HrPortal.Api.Employees;
 using HrPortal.Api.Errors;
+using HrPortal.Api.Notifications;
 using HrPortal.Api.Organisation;
+using HrPortal.Api.Requisitions;
+using HrPortal.Domain.Notifications;
 using HrPortal.Infrastructure;
 using HrPortal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddHrPortalAuth();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.AddBackgroundJobs();
+builder.Services.AddScoped<INotificationEmailQueue, HangfireNotificationEmailQueue>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<DatabaseConflictExceptionHandler>();
@@ -60,6 +64,9 @@ app.MapCompensationEndpoints();
 app.MapEmployeeDocumentEndpoints();
 app.MapEmployeeImportEndpoints();
 app.MapHrAccessEndpoints();
+app.MapRequisitionEndpoints();
+app.MapApprovalChainEndpoints();
+app.MapNotificationEndpoints();
 
 await app.RunAsync();
 

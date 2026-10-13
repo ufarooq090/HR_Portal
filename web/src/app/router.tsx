@@ -13,6 +13,11 @@ import { PeoplePage } from '../pages/PeoplePage'
 import { EmployeeProfilePage } from '../pages/employees/EmployeeProfilePage'
 import { ImportEmployeesPage } from '../pages/employees/ImportEmployeesPage'
 import { NewEmployeePage } from '../pages/employees/NewEmployeePage'
+import { ApprovalChainsPage } from '../pages/requisitions/ApprovalChainsPage'
+import { ApprovalsPage } from '../pages/requisitions/ApprovalsPage'
+import { RequisitionDetailPage } from '../pages/requisitions/RequisitionDetailPage'
+import { RequisitionFormPage } from '../pages/requisitions/RequisitionFormPage'
+import { RequisitionsPage } from '../pages/requisitions/RequisitionsPage'
 import { AppShell } from './AppShell'
 
 export const router = createBrowserRouter([
@@ -24,6 +29,12 @@ export const router = createBrowserRouter([
       { path: 'people/new', element: <NewEmployeePage /> },
       { path: 'people/import', element: <ImportEmployeesPage /> },
       { path: 'people/:id', element: <EmployeeProfilePage /> },
+      { path: 'requisitions', element: <RequisitionsPage /> },
+      { path: 'requisitions/new', element: <RequisitionFormPage /> },
+      { path: 'requisitions/:id', element: <RequisitionDetailPage /> },
+      { path: 'requisitions/:id/edit', element: <RequisitionFormPage /> },
+      { path: 'approvals', element: <ApprovalsPage /> },
+      { path: 'settings/approval-chains', element: <ApprovalChainsPage /> },
       { path: 'settings/countries', element: <CountriesPage /> },
       { path: 'settings/legal-entities', element: <LegalEntitiesPage /> },
       { path: 'settings/locations', element: <OfficeLocationsPage /> },

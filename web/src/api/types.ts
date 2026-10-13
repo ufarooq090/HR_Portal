@@ -7,6 +7,8 @@ export interface Me {
   countryCode: string | null
   /** Countries the user sees as HR staff (MC-03). Empty for non-HR users. */
   hrCountries: { all: boolean; codes: string[] }
+  /** In a requisition approval chain: shows the Approvals page. */
+  isApprover: boolean
 }
 
 export interface DevUser {
@@ -328,4 +330,101 @@ export interface ProblemDetails {
   status?: number
   detail?: string
   errors?: Record<string, string[]>
+}
+
+export const requisitionStatuses = ['Draft', 'PendingApproval', 'Open', 'OnHold', 'Filled', 'Cancelled'] as const
+export type RequisitionStatus = (typeof requisitionStatuses)[number]
+export type RequisitionReason = 'NewPosition' | 'Replacement'
+export type ApprovalDecision = 'Pending' | 'Approved' | 'Rejected' | 'Closed'
+
+export interface RequisitionSummary {
+  id: string
+  number: string
+  title: string
+  departmentName: string
+  officeLocationName: string
+  countryCode: string
+  openings: number
+  budgetMin: number
+  budgetMax: number
+  currencyCode: string
+  status: RequisitionStatus
+  targetDate: string
+  requesterName: string
+  createdAtUtc: string
+}
+
+export interface RequisitionApproval {
+  round: number
+  stepOrder: number
+  label: string
+  approverEmployeeId: string
+  approverName: string
+  decision: ApprovalDecision
+  comment: string | null
+  decidedAtUtc: string | null
+}
+
+export interface RequisitionStatusChange {
+  fromStatus: RequisitionStatus | null
+  toStatus: RequisitionStatus
+  actorName: string
+  atUtc: string
+  comment: string | null
+}
+
+/** Computed by the API for the signed-in user. */
+export interface RequisitionPermissions {
+  canEdit: boolean
+  canSubmit: boolean
+  canWithdraw: boolean
+  canDecide: boolean
+  statusOptions: RequisitionStatus[]
+}
+
+export interface RequisitionDetail extends RequisitionSummary {
+  departmentId: string
+  officeLocationId: string
+  reason: RequisitionReason
+  replacedEmployeeId: string | null
+  replacedEmployeeName: string | null
+  jobDescription: string
+  requesterEmployeeId: string
+  approvals: RequisitionApproval[]
+  history: RequisitionStatusChange[]
+  permissions: RequisitionPermissions
+}
+
+/** The budget is in the office's country currency (MC-02); there is no currency to choose. */
+export interface RequisitionRequest {
+  title: string
+  departmentId: string
+  officeLocationId: string
+  openings: number
+  budgetMin: number
+  budgetMax: number
+  reason: RequisitionReason
+  replacedEmployeeId: string | null
+  targetDate: string
+  jobDescription: string
+}
+
+export interface ApprovalChain {
+  countryCode: string
+  countryName: string
+  steps: { label: string; approverEmployeeId: string; approverName: string; approverActive: boolean }[]
+}
+
+export interface AppNotification {
+  id: string
+  title: string
+  body: string
+  link: string
+  createdAtUtc: string
+  isRead: boolean
+}
+
+export interface NotificationList {
+  unreadCount: number
+  items: AppNotification[]
 }

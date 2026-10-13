@@ -29,6 +29,7 @@ const api = spawn('dotnet', ['run', '--project', 'src/HrPortal.Api', '--no-launc
     FieldEncryption__ActiveKeyId: 'e2e',
     FieldEncryption__Keys__e2e: randomBytes(32).toString('base64'),
     Storage__ConnectionString: 'UseDevelopmentStorage=true',
+    Portal__BaseUrl: process.env.E2E_WEB_URL ?? 'http://127.0.0.1:5273',
     Email__Smtp__Host: 'localhost',
     Email__Smtp__Port: '1025',
   },

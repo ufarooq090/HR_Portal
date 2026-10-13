@@ -39,7 +39,8 @@ public class AuthenticationTests(HrPortalApiFactory factory)
         var users = await factory.CreateClient().GetFromJsonAsync<List<DevUser>>("/api/dev/users");
 
         Assert.NotNull(users);
-        Assert.Equal(14, users.Count);
+        Assert.Equal(15, users.Count);
+        Assert.Contains(users, u => u.Id == "dev-ceo");
         Assert.Contains(users, u => u.Id == "dev-pk-hradmin" && u.CountryCode == "PK");
     }
 

@@ -45,6 +45,8 @@ public static class DependencyInjection
         services.AddSingleton<IFileStore, BlobFileStore>();
         services.AddScoped<EmployeeImporter>();
         services.AddScoped<ScheduledChangeRunner>();
+        services.AddOptions<PortalOptions>().Bind(configuration.GetSection(PortalOptions.SectionName));
+        services.AddScoped<NotificationEmailJob>();
 
         // Microsoft Graph implementations replace these for deployed environments.
         services.AddOptions<SmtpEmailOptions>().Bind(configuration.GetSection("Email:Smtp"));

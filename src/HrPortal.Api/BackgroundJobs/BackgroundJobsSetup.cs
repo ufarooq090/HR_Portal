@@ -17,8 +17,11 @@ public static class BackgroundJobsSetup
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(
-                sp.GetRequiredService<IConfiguration>().GetConnectionString(DependencyInjection.ConnectionStringName))));
+            .UsePostgreSqlStorage(
+                options => options.UseNpgsqlConnection(
+                    sp.GetRequiredService<IConfiguration>().GetConnectionString(DependencyInjection.ConnectionStringName)),
+                // Notification emails should go out within seconds, not the 15-second default.
+                new PostgreSqlStorageOptions { QueuePollInterval = TimeSpan.FromSeconds(2) }));
 
         if (builder.Configuration.GetValue(RunServerKey, defaultValue: true))
         {
