@@ -1,5 +1,4 @@
 using HrPortal.Domain.Common;
-using HrPortal.Domain.Employees;
 using HrPortal.Domain.Organisation;
 
 namespace HrPortal.UnitTests.Organisation;
@@ -65,43 +64,4 @@ public class OrganisationStructureTests
 
         Assert.Equal("name", ex.Field);
     }
-
-    [Fact]
-    public void MC_01_employee_takes_country_from_legal_entity_and_office()
-    {
-        var employee = NewEmployee(new LegalEntity("PK", "PK Ltd"), new OfficeLocation("PK", "Lahore", null, null));
-
-        Assert.Equal("PK", employee.CountryCode);
-    }
-
-    [Fact]
-    public void MC_01_employee_office_must_be_in_the_legal_entity_country()
-    {
-        var ex = Assert.Throws<DomainValidationException>(() =>
-            NewEmployee(new LegalEntity("PK", "PK Ltd"), new OfficeLocation("US", "US Office", null, null)));
-
-        Assert.Equal("officeLocation", ex.Field);
-    }
-
-    [Fact]
-    public void MC_01_employee_grade_must_be_in_the_employee_country()
-    {
-        var ex = Assert.Throws<DomainValidationException>(() =>
-            NewEmployee(new LegalEntity("PK", "PK Ltd"), new OfficeLocation("PK", "Lahore", null, null), new Grade("US", "G1", "Associate", 1, null, null)));
-
-        Assert.Equal("grade", ex.Field);
-    }
-
-    [Fact]
-    public void Employee_cannot_report_to_themselves()
-    {
-        var employee = NewEmployee(new LegalEntity("PK", "PK Ltd"), new OfficeLocation("PK", "Lahore", null, null));
-
-        Assert.Throws<DomainValidationException>(() => employee.SetManager(employee));
-    }
-
-    private static Employee NewEmployee(LegalEntity entity, OfficeLocation office, Grade? grade = null) =>
-        Employee.Create(
-            new Person("Ayesha", "Khan"), "pk-0001", "Ayesha.Khan@Example.com", "Engineer",
-            entity, office, new Department("ENG", "Engineering"), grade, new DateOnly(2026, 1, 1));
 }

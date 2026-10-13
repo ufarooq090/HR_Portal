@@ -13,6 +13,10 @@ public static class SeedData
 {
     public static IEnumerable<string> AllDevUsers => DevUsers.All.Select(u => u.Id);
 
+    /// <summary>Seeded employee numbers look like PK-0001; test-created ones start with "T-".</summary>
+    public static bool IsSeeded(string employeeNumber) =>
+        System.Text.RegularExpressions.Regex.IsMatch(employeeNumber, "^(PK|US)-[0-9]{4}$");
+
     public static TheoryData<string> DevUsersData => new(AllDevUsers);
 
     public static TheoryData<string> DevUsersExceptHrAdmins =>

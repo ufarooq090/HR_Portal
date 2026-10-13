@@ -15,7 +15,8 @@ and reference requirement IDs in test names and commit messages.
 - Frontend: React + TypeScript (Vite), Fluent UI React v9, TanStack Query, React Router
 - Auth: Microsoft Entra ID (Microsoft.Identity.Web on the API, MSAL in the SPA)
 - Email/calendar: Microsoft Graph SDK, behind interfaces (see Integrations)
-- Files: Azure Blob Storage (Azurite locally)
+- Files: Azure Blob Storage (Azurite locally) via `Azure.Storage.Blobs`
+- Spreadsheets: `ClosedXML` for .xlsx import/export (not EPPlus), `CsvHelper` for .csv import
 - Background jobs: Hangfire (PostgreSQL storage), hosted in the API process
 - Tests: xUnit + Testcontainers (backend), Vitest (frontend), Playwright (E2E, TypeScript)
 - Hosting: Azure App Service, Key Vault, Application Insights; CI/CD in GitHub Actions

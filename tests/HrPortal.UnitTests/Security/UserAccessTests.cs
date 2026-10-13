@@ -128,6 +128,32 @@ public class UserAccessTests
     }
 
     [Fact]
+    public void EMP_01_managers_do_not_get_personal_data_of_their_team()
+    {
+        var manager = User([Roles.LineManager, Roles.HiringManager, Roles.Employee]);
+
+        Assert.Equal([Own], manager.PersonalDataScopesFor(Capability.View));
+        Assert.Contains(Team, manager.ScopesFor(HrModule.EmployeeRecords, Capability.View));
+    }
+
+    [Fact]
+    public void EMP_01_HR_get_personal_data_in_their_countries_and_only_HR_can_edit_it()
+    {
+        Assert.Equal([Own, Countries], User([Roles.HrExecutive, Roles.Employee]).PersonalDataScopesFor(Capability.View).Order());
+        Assert.Equal([Countries], User([Roles.HrExecutive, Roles.Employee]).PersonalDataScopesFor(Capability.Edit));
+        Assert.Empty(User([Roles.Employee]).PersonalDataScopesFor(Capability.Edit));
+    }
+
+    [Theory]
+    [InlineData(Roles.HrAdmin, true)]
+    [InlineData(Roles.HrExecutive, false)]
+    [InlineData(Roles.SystemAdmin, false)]
+    public void EMP_04_only_HR_admins_can_terminate(string role, bool expected)
+    {
+        Assert.Equal(expected, User([role]).CanTerminate);
+    }
+
+    [Fact]
     public void HR_access_settings_need_at_least_one_valid_country()
     {
         Assert.Throws<DomainValidationException>(() => new HrAccessSettings(Self, CountryScope.Of([]), false));

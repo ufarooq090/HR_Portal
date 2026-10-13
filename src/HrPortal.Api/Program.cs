@@ -52,6 +52,9 @@ app.MapMeEndpoints();
 app.MapCountrySettingsEndpoints();
 app.MapOrganisationEndpoints();
 app.MapEmployeeEndpoints();
+app.MapCompensationEndpoints();
+app.MapEmployeeDocumentEndpoints();
+app.MapEmployeeImportEndpoints();
 app.MapHrAccessEndpoints();
 
 await app.RunAsync();

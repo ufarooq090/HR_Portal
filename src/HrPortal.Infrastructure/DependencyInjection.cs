@@ -1,4 +1,8 @@
+using Azure.Storage.Blobs;
 using HrPortal.Domain.Audit;
+using HrPortal.Domain.Files;
+using HrPortal.Infrastructure.Employees;
+using HrPortal.Infrastructure.Files;
 using HrPortal.Domain.Notifications;
 using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Audit;
@@ -34,6 +38,12 @@ public static class DependencyInjection
         });
         services.AddScoped<IAuditLog, AuditLog>();
         services.AddScoped<IAccessContext, AccessContext>();
+
+        services.AddSingleton(sp => new BlobServiceClient(
+            sp.GetRequiredService<IConfiguration>()[BlobFileStore.ConnectionStringKey]
+            ?? throw new InvalidOperationException($"'{BlobFileStore.ConnectionStringKey}' is not configured.")));
+        services.AddSingleton<IFileStore, BlobFileStore>();
+        services.AddScoped<EmployeeImporter>();
 
         // Microsoft Graph implementations replace these for deployed environments.
         services.AddOptions<SmtpEmailOptions>().Bind(configuration.GetSection("Email:Smtp"));

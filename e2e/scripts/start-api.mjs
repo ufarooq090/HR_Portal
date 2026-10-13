@@ -28,6 +28,7 @@ const api = spawn('dotnet', ['run', '--project', 'src/HrPortal.Api', '--no-launc
     ConnectionStrings__HrPortal: `Host=localhost;Port=5432;Database=${database};Username=hrportal`,
     FieldEncryption__ActiveKeyId: 'e2e',
     FieldEncryption__Keys__e2e: randomBytes(32).toString('base64'),
+    Storage__ConnectionString: 'UseDevelopmentStorage=true',
     Email__Smtp__Host: 'localhost',
     Email__Smtp__Port: '1025',
   },

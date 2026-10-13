@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using HrPortal.Api.Auth.DevAuth;
+using HrPortal.Domain.Files;
+using Microsoft.AspNetCore.TestHost;
 using HrPortal.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -29,7 +31,10 @@ public sealed class HrPortalApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("Database:MigrateOnStartup", "true");
         builder.UseSetting("FieldEncryption:ActiveKeyId", "test");
         builder.UseSetting("FieldEncryption:Keys:test", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        builder.ConfigureTestServices(services => services.AddSingleton<IFileStore>(Files));
     }
+
+    public InMemoryFileStore Files { get; } = new();
 
     /// <summary>HTTP client signed in as a seeded dev user, e.g. <c>dev-pk-hradmin</c>.</summary>
     public HttpClient CreateClientAs(string devUserId)

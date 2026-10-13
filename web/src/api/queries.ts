@@ -4,7 +4,6 @@ import type {
   CountrySettings,
   CreateCountryRequest,
   DevUser,
-  EmployeeSummary,
   HrAccess,
   Me,
   UpdateCountrySettingsRequest,
@@ -16,7 +15,6 @@ export const queryKeys = {
   devUsers: ['dev', 'users'] as const,
   countries: ['organisation', 'countries'] as const,
   organisation: (resource: OrganisationResource) => ['organisation', resource] as const,
-  employees: (search: string) => ['employees', search] as const,
   hrAccess: ['access', 'hr'] as const,
 }
 
@@ -79,14 +77,6 @@ export function useDeleteOrganisationItem(resource: OrganisationResource) {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/organisation/${resource}/${encodeURIComponent(id)}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.organisation(resource) }),
-  })
-}
-
-export function useEmployees(search = '') {
-  return useQuery({
-    queryKey: queryKeys.employees(search),
-    queryFn: () =>
-      api.get<EmployeeSummary[]>(search ? `/api/employees?search=${encodeURIComponent(search)}` : '/api/employees'),
   })
 }
 

@@ -1,3 +1,4 @@
+using HrPortal.Domain.Common;
 using HrPortal.Domain.Employees;
 using HrPortal.Domain.Organisation;
 using HrPortal.Domain.Security;
@@ -49,23 +50,51 @@ public static class DevDataSeeder
             var senior = db.Grades.Add(new Grade(country, "G2", "Senior", 2, null, null)).Entity;
             var manager = db.Grades.Add(new Grade(country, "G3", "Manager", 3, null, 60)).Entity;
 
+            var settings = await db.CountrySettings.SingleAsync(c => c.CountryCode == country, ct);
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var number = 0;
             Employee Add(string givenName, string familyName, string email, string jobTitle, string department, Grade grade, Employee? reportsTo, string? userId)
             {
+                var person = new Person(givenName, familyName);
+                person.UpdatePersonalDetails(
+                    PersonalDetails.Empty with
+                    {
+                        Phone = country == "PK" ? $"+92 300 000 00{number + 1:D2}" : $"+1 212 555 01{number + 1:D2}",
+                        City = office.City,
+                        AddressCountryCode = country,
+                        DateOfBirth = new DateOnly(1990, 1, 1).AddDays(number * 97),
+                    },
+                    today);
+
+                // The junior engineer joined last month, so they are still on probation.
+                var isJunior = givenName == "Junior";
+                var joining = isJunior ? today.AddMonths(-1) : new DateOnly(2024, 1, 1).AddMonths(number + 1);
+                var terms = EmploymentTerms.For(settings, grade);
                 var employee = Employee.Create(
-                    new Person(givenName, familyName),
+                    person,
                     $"{country}-{++number:D4}",
                     email,
-                    jobTitle,
-                    legalEntity,
-                    office,
-                    departments[department],
-                    grade,
-                    new DateOnly(2024, 1, 1).AddMonths(number));
-                employee.SetManager(reportsTo);
+                    EmploymentType.Permanent,
+                    new JobPlacement(jobTitle, legalEntity, office, departments[department], grade),
+                    reportsTo,
+                    joining,
+                    terms);
+                if (!isJunior)
+                {
+                    employee.ChangeStatus(EmploymentStatus.Confirmed, employee.ProbationEndDate!.Value, null, terms, "Probation completed", today);
+                }
+
                 employee.LinkUserAccount(userId);
-                db.People.Add(employee.Person);
+                db.People.Add(person);
                 db.Employees.Add(employee);
+                db.Compensation.Add(Compensation.Create(
+                    employee,
+                    settings,
+                    new Money((country == "PK" ? 1_800_000m : 72_000m) * grade.Level, settings.CurrencyCode),
+                    $"Band {grade.Level}",
+                    joining,
+                    CompensationReason.Joining,
+                    null));
                 return employee;
             }
 

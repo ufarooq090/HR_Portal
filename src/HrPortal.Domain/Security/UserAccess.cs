@@ -78,6 +78,18 @@ public sealed class UserAccess
     public bool HasAny(HrModule module, Capability capability) => ScopesFor(module, capability).Count > 0;
 
     /// <summary>
+    /// Scopes for an employee's private data (personal details, national ID, emergency contacts, documents):
+    /// HR within their countries and the employee themselves. Managers' team access covers the work profile only.
+    /// </summary>
+    public IReadOnlySet<DataScope> PersonalDataScopesFor(Capability capability) =>
+        ScopesFor(HrModule.EmployeeRecords, capability)
+            .Where(s => s is DataScope.Own or DataScope.Countries or DataScope.All)
+            .ToHashSet();
+
+    /// <summary>Rule 8 and EMP-04: only HR Admins may record a termination.</summary>
+    public bool CanTerminate => Roles.Contains(Security.Roles.HrAdmin);
+
+    /// <summary>
     /// Whether the user may change organisation setup (settings, legal entities, offices, grades) for a country.
     /// HR Admins are limited to the countries they can access; System Admins manage settings for every country.
     /// </summary>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { devName, escapeRegExp, openNav, signInAs, switchUser } from './helpers'
+import { devName, escapeRegExp, openNav, rowFor, signInAs, switchUser } from './helpers'
 
 // Uses the US HR users only, so the PK directory expectations in data-scope.spec.ts are unaffected.
 test('MC-03: HR admin grants an HR executive a second country, then resets it', async ({ page }) => {
@@ -7,10 +7,12 @@ test('MC-03: HR admin grants an HR executive a second country, then resets it', 
   const admin = devName('HrAdmin', 'US')
   const executive = devName('HrExecutive', 'US')
 
-  // Default: a US HR executive sees the 9 US employees only.
+  // Default: a US HR executive sees US employees only.
   await signInAs(page, 'HrExecutive', 'US')
   await openNav(page, 'People')
-  await expect(page.getByText('9 people', { exact: true })).toBeVisible()
+  const people = page.getByRole('table', { name: 'People' })
+  await expect(rowFor(people, devName('Employee', 'US'))).toHaveCount(1)
+  await expect(rowFor(people, devName('Employee', 'PK'))).toHaveCount(0)
   await switchUser(page, executive)
 
   await signInAs(page, 'HrAdmin', 'US')
@@ -29,7 +31,7 @@ test('MC-03: HR admin grants an HR executive a second country, then resets it', 
 
   await signInAs(page, 'HrExecutive', 'US')
   await openNav(page, 'People')
-  await expect(page.getByText('18 people', { exact: true })).toBeVisible()
+  await expect(rowFor(people, devName('Employee', 'PK'))).toHaveCount(1)
   await switchUser(page, executive)
 
   await signInAs(page, 'HrAdmin', 'US')

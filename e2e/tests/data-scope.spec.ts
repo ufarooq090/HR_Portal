@@ -16,9 +16,10 @@ const pk = {
 }
 const everyonePk = Object.values(pk)
 
-const expectations: { role: string; count: number; sees: string[] }[] = [
-  { role: 'HrAdmin', count: 18, sees: [...everyonePk, devName('Employee', 'US')] },
-  { role: 'HrExecutive', count: 9, sees: everyonePk },
+const expectations: { role: string; count: number | null; sees: string[]; hidden?: string[] }[] = [
+  // HR head-counts are not fixed: other specs add employees in parallel, so HR rows check names only.
+  { role: 'HrAdmin', count: null, sees: [...everyonePk, devName('Employee', 'US')] },
+  { role: 'HrExecutive', count: null, sees: everyonePk, hidden: [devName('Employee', 'US')] },
   { role: 'HiringManager', count: 5, sees: [pk.hiringManager, pk.lineManager, pk.interviewer, pk.employee, pk.junior] },
   { role: 'LineManager', count: 3, sees: [pk.lineManager, pk.employee, pk.junior] },
   { role: 'Interviewer', count: 1, sees: [pk.interviewer] },
@@ -26,18 +27,20 @@ const expectations: { role: string; count: number; sees: string[] }[] = [
   { role: 'SystemAdmin', count: 1, sees: [pk.systemAdmin] },
 ]
 
-for (const { role, count, sees } of expectations) {
+for (const { role, count, sees, hidden = [] } of expectations) {
   test(`NFR-02 / MC-03: ${role} (PK) sees only their scope in the People directory`, async ({ page }) => {
     await signInAs(page, role, 'PK')
     await openNav(page, 'People')
 
     const table = page.getByRole('table', { name: 'People' })
-    await expect(page.getByText(count === 1 ? '1 person' : `${count} people`, { exact: true })).toBeVisible()
-    await expect(table.getByRole('row')).toHaveCount(count + 1)
+    if (count !== null) {
+      await expect(page.getByText(count === 1 ? '1 person' : `${count} people`, { exact: true })).toBeVisible()
+      await expect(table.getByRole('row')).toHaveCount(count + 1)
+    }
     for (const name of sees) {
       await expect(rowFor(table, name)).toHaveCount(1)
     }
-    for (const name of everyonePk.filter((n) => !sees.includes(n))) {
+    for (const name of [...everyonePk.filter((n) => !sees.includes(n)), ...hidden]) {
       await expect(rowFor(table, name)).toHaveCount(0)
     }
   })

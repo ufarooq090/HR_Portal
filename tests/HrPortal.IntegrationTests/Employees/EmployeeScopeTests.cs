@@ -20,7 +20,7 @@ public class EmployeeScopeTests(HrPortalApiFactory factory)
     {
         var employees = await factory.CreateClientAs(devUser).GetFromJsonAsync<List<EmployeeSummary>>("/api/employees");
 
-        Assert.Equal(SeedData.VisibleTo(devUser), employees!.Select(e => e.EmployeeNumber).Order(StringComparer.Ordinal));
+        Assert.Equal(SeedData.VisibleTo(devUser), employees!.Select(e => e.EmployeeNumber).Where(SeedData.IsSeeded).Order(StringComparer.Ordinal));
     }
 
     [Theory]
@@ -31,7 +31,7 @@ public class EmployeeScopeTests(HrPortalApiFactory factory)
         var visible = SeedData.VisibleTo(devUser);
         var allNumbers = await factory.WithDbAsync(db => db.Employees.Select(e => e.EmployeeNumber).ToListAsync());
 
-        foreach (var number in allNumbers.Where(n => n.Length == 7))
+        foreach (var number in allNumbers.Where(SeedData.IsSeeded))
         {
             var response = await client.GetAsync($"/api/employees/{await factory.EmployeeIdAsync(number)}");
 
@@ -107,7 +107,7 @@ public class EmployeeScopeTests(HrPortalApiFactory factory)
         await using (await factory.SetHrAccessAsync("dev-pk-hrexecutive", CountryScope.Of(["PK", "US"])))
         {
             var all = await client.GetFromJsonAsync<List<EmployeeSummary>>("/api/employees");
-            Assert.Equal(18, all!.Count(e => e.EmployeeNumber.Length == 7));
+            Assert.Equal(18, all!.Count(e => SeedData.IsSeeded(e.EmployeeNumber)));
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/employees/{usEmployee}")).StatusCode);
         }
 
@@ -148,9 +148,9 @@ public class EmployeeScopeTests(HrPortalApiFactory factory)
             await using var transaction = await db.Database.BeginTransactionAsync();
             var employee = await db.Employees.SingleAsync(e => e.EmployeeNumber == "PK-0006");
             var lineManager = await db.Employees.SingleAsync(e => e.EmployeeNumber == "PK-0005");
-            employee.SetManager(lineManager);
-            lineManager.SetManager(employee);
-            await db.SaveChangesAsync();
+
+            // The domain refuses loops, so force one in SQL to prove the database function still terminates.
+            await db.Database.ExecuteSqlAsync($"""UPDATE "Employees" SET "ManagerId" = {employee.Id} WHERE "Id" = {lineManager.Id}""");
 
             var reports = await db.ReportIds(lineManager.Id).ToListAsync();
 

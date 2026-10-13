@@ -10,6 +10,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Pre-transform the app at startup so the first page load (e.g. in E2E runs) does not wait on compilation.
+    warmup: { clientFiles: ['./src/main.tsx', './src/app/router.tsx'] },
     proxy: {
       '/api': apiUrl,
       '/health': apiUrl,

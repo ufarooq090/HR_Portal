@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ApiError, createApiClient } from './client'
+import { ApiError, createApiClient, fileNameFrom } from './client'
 
 function jsonResponse(status: number, body: unknown, contentType = 'application/json'): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': contentType } })
@@ -49,6 +49,41 @@ describe('createApiClient', () => {
 
     expect(error.status).toBe(403)
     expect(error.problem).toBeUndefined()
+  })
+
+  it('sends FormData as multipart without forcing a JSON content type', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(200, { imported: 2 }))
+    const client = createApiClient(async () => ({ 'X-Dev-User': 'dev-pk-hradmin' }), fetchMock)
+    const form = new FormData()
+    form.append('file', new Blob(['a,b']), 'people.csv')
+
+    await client.postForm('/api/employees/import', form)
+
+    const init = fetchMock.mock.calls[0]![1]!
+    expect(init.body).toBe(form)
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
+    expect((init.headers as Record<string, string>)['X-Dev-User']).toBe('dev-pk-hradmin')
+  })
+
+  it('downloads files with auth headers and the server-provided file name', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('xlsx-bytes', {
+        status: 200,
+        headers: { 'Content-Disposition': "attachment; filename=report.xlsx; filename*=UTF-8''employee%20errors.xlsx" },
+      }),
+    )
+    const client = createApiClient(async () => ({ 'X-Dev-User': 'dev-pk-hradmin' }), fetchMock)
+
+    const file = await client.download('/api/employees/import/template')
+
+    expect(file.fileName).toBe('employee errors.xlsx')
+    expect(await file.blob.text()).toBe('xlsx-bytes')
+    expect(fetchMock.mock.calls[0]![1]!.method).toBe('GET')
+  })
+
+  it('reads plain and missing Content-Disposition file names', () => {
+    expect(fileNameFrom('attachment; filename="contract.pdf"')).toBe('contract.pdf')
+    expect(fileNameFrom(null)).toBe('download')
   })
 
   it('returns undefined for 204 No Content', async () => {

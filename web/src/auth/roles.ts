@@ -27,6 +27,11 @@ export function canManageOrganisation(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin)
 }
 
+/** HR staff add and import employees (EmployeeRecords Create in the permission matrix). */
+export function canCreateEmployees(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive)
+}
+
 /** Matches the API's ManageHrAccess policy. */
 export function canManageHrAccess(user: UserLike): boolean {
   return hasAnyRole(user, Roles.HrAdmin)

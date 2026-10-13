@@ -74,8 +74,8 @@ jobs:
           cache-dependency-path: |
             web/package-lock.json
             e2e/package-lock.json
-      - name: Start PostgreSQL and Mailpit
-        run: docker compose up -d --wait postgres mailpit
+      - name: Start PostgreSQL, Mailpit and Azurite
+        run: docker compose up -d --wait postgres mailpit azurite
       - run: dotnet build src/HrPortal.Api
       - run: npm ci
         working-directory: web
