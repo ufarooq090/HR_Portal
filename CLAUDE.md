@@ -17,6 +17,8 @@ and reference requirement IDs in test names and commit messages.
 - Email/calendar: Microsoft Graph SDK, behind interfaces (see Integrations)
 - Files: Azure Blob Storage (Azurite locally) via `Azure.Storage.Blobs`
 - Spreadsheets: `ClosedXML` for .xlsx import/export (not EPPlus), `CsvHelper` for .csv import
+- CV text extraction (Resume Bank search): UglyToad PdfPig for PDF (NuGet id `PdfPig`, the official stable
+  release; the `UglyToad.PdfPig` id only has unofficial prereleases), `DocumentFormat.OpenXml` for Word
 - Background jobs: Hangfire (PostgreSQL storage), hosted in the API process
 - Tests: xUnit + Testcontainers (backend), Vitest (frontend), Playwright (E2E, TypeScript)
 - Hosting: Azure App Service, Key Vault, Application Insights; CI/CD in GitHub Actions
@@ -107,6 +109,8 @@ dotnet ef migrations add <Name> -p src/HrPortal.Infrastructure -s src/HrPortal.A
 dotnet run --project src/HrPortal.Api      # Development: DevAuth on, migrations applied on startup
                                            # DevAuth: send header X-Dev-User: dev-<pk|us>-<role>, e.g. dev-pk-hradmin,
                                            # or dev-ceo (default requisition approver)
+                                           # Development only: sample requisitions, candidates, interviews,
+                                           # scorecards and CVs are seeded once (emails @candidates.dev.test)
 cd web && npm install && npm run dev       # http://localhost:5173, proxies /api to :5195; DevAuth user picker
 cd web && npm run lint && npm test && npm run build   # oxlint, Vitest, tsc + vite build
 cd e2e && npm install && npx playwright install chromium   # one-time

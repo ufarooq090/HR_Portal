@@ -64,3 +64,13 @@ export function canConfigureCountry(
   if (user.roles.includes(Roles.SystemAdmin)) return true
   return user.roles.includes(Roles.HrAdmin) && (user.hrCountries.all || user.hrCountries.codes.includes(countryCode))
 }
+
+/** Resume Bank in the permission matrix: HR (their countries) and hiring managers (search and view). */
+export function canUseResumeBank(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive, Roles.HiringManager)
+}
+
+/** HR import candidate sheets into the Resume Bank (ResumeBank Create). */
+export function canImportCandidates(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin, Roles.HrExecutive)
+}

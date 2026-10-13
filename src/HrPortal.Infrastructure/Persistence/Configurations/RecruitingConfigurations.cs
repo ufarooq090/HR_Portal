@@ -1,10 +1,12 @@
 using System.Text.Json;
 using HrPortal.Domain.Employees;
+using HrPortal.Domain.Organisation;
 using HrPortal.Domain.Recruiting;
 using HrPortal.Domain.Requisitions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NpgsqlTypes;
 
 namespace HrPortal.Infrastructure.Persistence.Configurations;
 
@@ -18,6 +20,52 @@ internal sealed class CandidateProfileConfiguration : IEntityTypeConfiguration<C
         builder.Property(c => c.CurrentCtcCurrency).HasMaxLength(3).IsFixedLength();
         builder.Property(c => c.ExpectedCtcCurrency).HasMaxLength(3).IsFixedLength();
         builder.HasOne<Person>().WithOne().HasForeignKey<CandidateProfile>(c => c.PersonId).OnDelete(DeleteBehavior.Restrict);
+
+        // Resume Bank (RB-02..06).
+        builder.Property(c => c.CountryCode).HasMaxLength(2).IsFixedLength();
+        builder.HasOne<CountrySettings>().WithMany().HasForeignKey(c => c.CountryCode).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(c => c.Location).HasMaxLength(100);
+        builder.Property(c => c.ExperienceYears).HasPrecision(4, 1);
+        builder.Property(c => c.Skills).HasColumnType("text[]");
+        builder.Property(c => c.Tags).HasColumnType("text[]");
+        builder.Property(c => c.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(c => c.BlacklistReason).HasMaxLength(1000);
+        builder.HasMany(c => c.StatusHistory).WithOne().HasForeignKey(h => h.PersonId).HasPrincipalKey(c => c.PersonId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(c => c.StatusHistory).HasField("_statusHistory");
+        builder.HasIndex(c => c.Skills).HasMethod("GIN");
+        builder.HasIndex(c => c.Tags).HasMethod("GIN");
+        builder.HasIndex(c => new { c.CountryCode, c.Status });
+        builder.HasIndex(c => c.LastContactedAtUtc);
+    }
+}
+
+internal sealed class ResumeBankStatusChangeConfiguration : IEntityTypeConfiguration<ResumeBankStatusChange>
+{
+    public void Configure(EntityTypeBuilder<ResumeBankStatusChange> builder)
+    {
+        builder.ToTable("ResumeBankStatusChanges");
+        builder.Property(s => s.Id).ValueGeneratedNever();
+        builder.Property(s => s.FromStatus).HasConversion<string>().HasMaxLength(16);
+        builder.Property(s => s.ToStatus).HasConversion<string>().HasMaxLength(16);
+        builder.Property(s => s.Source).HasConversion<string>().HasMaxLength(16);
+        builder.Property(s => s.Reason).HasMaxLength(1000);
+        builder.Property(s => s.ActorId).HasMaxLength(128);
+        builder.Property(s => s.ActorName).HasMaxLength(256);
+        builder.HasIndex(s => s.PersonId);
+    }
+}
+
+internal sealed class CandidateNoteConfiguration : IEntityTypeConfiguration<CandidateNote>
+{
+    public void Configure(EntityTypeBuilder<CandidateNote> builder)
+    {
+        builder.ToTable("CandidateNotes");
+        builder.Property(n => n.Id).ValueGeneratedNever();
+        builder.Property(n => n.Body).HasMaxLength(4000);
+        builder.Property(n => n.AuthorId).HasMaxLength(128);
+        builder.Property(n => n.AuthorName).HasMaxLength(256);
+        builder.HasOne<Person>().WithMany().HasForeignKey(n => n.PersonId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(n => n.PersonId);
     }
 }
 
@@ -33,7 +81,15 @@ internal sealed class CandidateCvConfiguration : IEntityTypeConfiguration<Candid
         builder.Property(c => c.UploadedBy).HasMaxLength(256);
         builder.HasOne<Person>().WithMany().HasForeignKey(c => c.PersonId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(c => c.PersonId);
+
+        // RB-04: full-text search inside CV content. English stemming, so "developing" finds "developer".
+        builder.Property<NpgsqlTsVector>(SearchVector)
+            .HasComputedColumnSql("to_tsvector('english', coalesce(\"ExtractedText\", ''))", stored: true);
+        builder.HasIndex(SearchVector).HasMethod("GIN");
     }
+
+    /// <summary>Shadow column, so the domain stays free of Npgsql types.</summary>
+    public const string SearchVector = "SearchVector";
 }
 
 internal sealed class RejectionReasonConfiguration : IEntityTypeConfiguration<RejectionReason>

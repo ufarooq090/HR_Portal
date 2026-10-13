@@ -613,3 +613,85 @@ export interface RejectionReason {
   sortOrder: number
   isActive: boolean
 }
+
+/** Resume Bank statuses (RB-03). Blacklisted is set only by an HR Admin, with a reason. */
+export const resumeBankStatuses = ['Shortlisted', 'NotShortlisted', 'NoShow', 'OfferDeclined', 'Resigned', 'Terminated', 'Hired', 'Blacklisted'] as const
+export type ResumeBankStatus = (typeof resumeBankStatuses)[number]
+
+export interface ResumeBankRow {
+  personId: string
+  name: string
+  countryCode: string
+  location: string | null
+  currentEmployer: string | null
+  experienceYears: number | null
+  noticePeriodDays: number | null
+  skills: string[]
+  tags: string[]
+  status: ResumeBankStatus | null
+  lastContactedAtUtc: string | null
+  hasCv: boolean
+  applicationCount: number
+  latestOutcome: string | null
+  /** HR only. */
+  currentCtc: MoneyAmount | null
+}
+
+export interface ResumeBankSearchResult {
+  total: number
+  page: number
+  pageSize: number
+  items: ResumeBankRow[]
+}
+
+export type TimelineKind = 'applied' | 'stage' | 'interview' | 'feedback' | 'status' | 'note' | 'employment'
+
+export interface TimelineItem {
+  atUtc: string
+  kind: TimelineKind
+  title: string
+  detail: string | null
+  applicationId: string | null
+}
+
+export interface ResumeBankPermissions {
+  canView: boolean
+  canEdit: boolean
+  canSeeContact: boolean
+  canSeeCompensation: boolean
+  canSeeNotes: boolean
+  canBlacklist: boolean
+}
+
+export interface ResumeBankDetail {
+  personId: string
+  name: string
+  email: string | null
+  phone: string | null
+  countryCode: string
+  location: string | null
+  currentEmployer: string | null
+  experienceYears: number | null
+  noticePeriodDays: number | null
+  skills: string[]
+  tags: string[]
+  status: ResumeBankStatus | null
+  blacklistReason: string | null
+  lastContactedAtUtc: string | null
+  currentCtc: MoneyAmount | null
+  expectedCtc: MoneyAmount | null
+  isEmployee: boolean
+  cvs: Cv[]
+  applications: {
+    applicationId: string
+    requisitionNumber: string
+    requisitionTitle: string
+    countryCode: string
+    stage: PipelineStage
+    interviewRound: number | null
+    appliedAtUtc: string
+    canOpen: boolean
+  }[]
+  timeline: TimelineItem[]
+  permissions: ResumeBankPermissions
+}

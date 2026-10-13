@@ -167,10 +167,14 @@ public static class ApplicationEndpoints
             }
 
             personId = existing;
-            if (!await db.CandidateProfiles.AnyAsync(c => c.PersonId == existing, ct))
+            var existingProfile = await db.CandidateProfiles.SingleOrDefaultAsync(c => c.PersonId == existing, ct)
+                ?? db.CandidateProfiles.Add(new CandidateProfile(existing, requisition.CountryCode, now)).Entity;
+            if (existingProfile.IsBlacklisted)
             {
-                db.CandidateProfiles.Add(new CandidateProfile(existing, now));
+                throw new DomainValidationException("personId", "This person is blacklisted in the Resume Bank. An HR Admin must remove them from the blacklist first.");
             }
+
+            existingProfile.MarkContacted(now);
         }
         else
         {
@@ -183,8 +187,9 @@ public static class ApplicationEndpoints
 
             var person = new Person(candidate.GivenName, candidate.FamilyName);
             person.UpdateContact(candidate.Email, candidate.Phone);
-            var profile = new CandidateProfile(person.Id, now);
+            var profile = new CandidateProfile(person.Id, requisition.CountryCode, now);
             await ApplyProfileAsync(db, profile, candidate, ct);
+            profile.MarkContacted(now);
             db.People.Add(person);
             db.CandidateProfiles.Add(profile);
             personId = person.Id;
@@ -229,9 +234,16 @@ public static class ApplicationEndpoints
                 ? await db.RejectionReasons.SingleOrDefaultAsync(r => r.Id == reasonId, ct)
                     ?? throw new DomainValidationException("rejectionReasonId", "Choose a rejection reason from the list.")
                 : null;
-            access.Application.MoveTo(
-                request.Stage, request.Round, reason, request.Reason, access.Requisition.InterviewRounds,
-                new Actor(user.UserId, user.DisplayName, userAccess.EmployeeId), clock.GetUtcNow());
+            var actor = new Actor(user.UserId, user.DisplayName, userAccess.EmployeeId);
+            var now = clock.GetUtcNow();
+            access.Application.MoveTo(request.Stage, request.Round, reason, request.Reason, access.Requisition.InterviewRounds, actor, now);
+
+            // RB-03: the Resume Bank status follows the pipeline (never overriding a blacklist).
+            var profile = await db.CandidateProfiles.Include(p => p.StatusHistory).SingleAsync(p => p.PersonId == access.Application.PersonId, ct);
+            profile.ApplyAutomaticStatus(
+                ResumeBankStatusRules.FromPipeline(request.Stage), StatusChangeSource.Pipeline,
+                $"{access.Requisition.Number} {access.Requisition.Title}: {Application.Label(request.Stage)}", actor, now);
+            profile.MarkContacted(now);
         }, ct);
 
     private static async Task<IResult> AddNoteAsync(
@@ -281,11 +293,19 @@ public static class ApplicationEndpoints
         var candidate = await db.People.AsNoTracking().SingleAsync(p => p.Id == access.Application.PersonId, ct);
         var now = clock.GetUtcNow();
         var subject = $"Interview round {interview.Round}: {candidate.FullName} for {access.Requisition.Number} {access.Requisition.Title}";
+        // Each panelist reads the time in their own office's time zone (emails cannot adapt to the reader).
+        var panelZones = await (
+                from e in db.Employees
+                where panelIds.Contains(e.Id)
+                join o in db.OfficeLocations on e.OfficeLocationId equals o.Id
+                join k in db.CountrySettings on o.CountryCode equals k.CountryCode
+                select new { e.Id, TimeZone = o.TimeZone ?? k.DefaultTimeZone })
+            .ToDictionaryAsync(x => x.Id, x => x.TimeZone, ct);
         var notifications = panel.Select(p => new Notification(
                 p.Id,
                 $"Interview panel: {candidate.FullName}",
                 $"You are on the round {interview.Round} panel for {candidate.FullName} ({access.Requisition.Number} {access.Requisition.Title}) " +
-                $"on {interview.StartUtc:dd MMM yyyy HH:mm} UTC, {interview.DurationMinutes} minutes, {interview.Mode}." +
+                $"on {LocalCalendar.Format(interview.StartUtc, panelZones[p.Id])}, {interview.DurationMinutes} minutes, {interview.Mode}." +
                 (interview.Location is null ? string.Empty : $"\nWhere: {interview.Location}") +
                 "\nSubmit your scorecard after the interview; you will see the panel's feedback once you have.",
                 $"/applications/{access.Application.Id}",
@@ -293,6 +313,7 @@ public static class ApplicationEndpoints
             .ToList();
         db.Interviews.Add(interview);
         db.Notifications.AddRange(notifications);
+        (await db.CandidateProfiles.SingleAsync(p => p.PersonId == candidate.Id, ct)).MarkContacted(now);
         await db.SaveChangesAsync(ct);
 
         var organizer = user.EmployeeId is { } me

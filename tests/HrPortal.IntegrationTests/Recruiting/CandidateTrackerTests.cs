@@ -160,8 +160,21 @@ public class CandidateTrackerTests(HrPortalApiFactory factory)
 
         var expected = allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden;
         Assert.Equal(expected, detail.StatusCode);
-        Assert.Equal(expected, candidate.StatusCode);
         Assert.Equal(allowed, list!.Any(a => a.Id == card.Id));
+
+        // Every hiring manager may look candidates up in the Resume Bank (RB scoping): the person and their CVs, but
+        // not their contact details, salary or applications on other managers' requisitions.
+        if (!allowed && devUser.EndsWith("-hiringmanager", StringComparison.Ordinal))
+        {
+            Assert.Equal(HttpStatusCode.OK, candidate.StatusCode);
+            var limited = (await candidate.Content.ReadFromJsonAsync<CandidateDetail>())!;
+            Assert.Equal((null, null, null, false), (limited.Email, limited.Phone, limited.CurrentCtc, limited.CanEdit));
+            Assert.Empty(limited.Applications);
+        }
+        else
+        {
+            Assert.Equal(expected, candidate.StatusCode);
+        }
     }
 
     [Fact]
@@ -304,6 +317,22 @@ public class CandidateTrackerTests(HrPortalApiFactory factory)
 
         await factory.CreateClientAs(Hr).DeleteAsync($"/api/applications/{card.Id}/interviews/{interview.Id}");
         Assert.Contains(created.EventId, factory.Calendar.Cancelled);
+    }
+
+    [Fact]
+    public async Task CT_04_each_panelist_gets_the_time_in_their_own_office_time_zone()
+    {
+        var requisition = await OpenRequisitionAsync();
+        var card = await AddAsync(requisition.Id);
+
+        // 10:00 UTC on 2 Nov 2026: 15:00 in Karachi, 05:00 in New York (after the US clocks change).
+        await ScheduleAsync(card.Id, 1, "PK-0007", "US-0007");
+
+        var pk = factory.Emails.To("dev-pk-interviewer@hrportal.test").Last(m => m.Subject.Contains(card.CandidateName));
+        var us = factory.Emails.To("dev-us-interviewer@hrportal.test").Last(m => m.Subject.Contains(card.CandidateName));
+        Assert.Contains("Mon 2 Nov 2026, 15:00 Asia/Karachi (UTC+05:00)", pk.HtmlBody);
+        Assert.Contains("Mon 2 Nov 2026, 05:00 America/New_York (UTC-05:00)", us.HtmlBody);
+        Assert.DoesNotContain(" UTC,", pk.HtmlBody);
     }
 
     [Fact]

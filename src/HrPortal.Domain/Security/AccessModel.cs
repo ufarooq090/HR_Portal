@@ -56,7 +56,7 @@ public enum DataScope
     /// <summary>Every record in the countries the HR user may access (MC-03).</summary>
     Countries,
 
-    /// <summary>Every record, not limited by country (e.g. the Resume Bank, which holds candidates not yet tied to a country).</summary>
+    /// <summary>Every record, not limited by country (e.g. hiring managers searching the whole Resume Bank).</summary>
     All,
 }
 

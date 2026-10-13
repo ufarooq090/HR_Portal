@@ -94,6 +94,16 @@ public class ScheduledJobChangeTests
     }
 
     [Fact]
+    public void Times_in_emails_are_shown_in_the_readers_zone_with_its_name()
+    {
+        var moment = new DateTimeOffset(2030, 1, 15, 10, 0, 0, TimeSpan.Zero);
+
+        Assert.Equal("Tue 15 Jan 2030, 15:00 Asia/Karachi (UTC+05:00)", LocalCalendar.Format(moment, "Asia/Karachi"));
+        Assert.Equal("Tue 15 Jan 2030, 05:00 America/New_York (UTC-05:00)", LocalCalendar.Format(moment, "America/New_York"));
+        Assert.Equal("Mon 15 Jul 2030, 06:00 America/New_York (UTC-04:00)", LocalCalendar.Format(moment.AddMonths(6), "America/New_York"));
+    }
+
+    [Fact]
     public void Effective_dates_follow_the_office_time_zone()
     {
         var instant = new DateTimeOffset(2027, 5, 9, 20, 0, 0, TimeSpan.Zero);

@@ -8,6 +8,7 @@ using HrPortal.Api.Notifications;
 using HrPortal.Api.Organisation;
 using HrPortal.Api.Recruiting;
 using HrPortal.Api.Requisitions;
+using HrPortal.Domain.Files;
 using HrPortal.Domain.Notifications;
 using HrPortal.Infrastructure;
 using HrPortal.Infrastructure.Persistence;
@@ -35,6 +36,12 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     if (app.Configuration.GetValue<bool>(DevAuthGuard.ConfigKey))
     {
         await DevDataSeeder.SeedAsync(db);
+
+        // Sample recruiting data to explore the screens locally; never in Test or deployed environments.
+        if (app.Environment.IsDevelopment())
+        {
+            await DevRecruitingSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<IFileStore>(), app.Environment);
+        }
     }
 }
 
@@ -71,6 +78,7 @@ app.MapNotificationEndpoints();
 app.MapCandidateEndpoints();
 app.MapApplicationEndpoints();
 app.MapRejectionReasonEndpoints();
+app.MapResumeBankEndpoints();
 
 await app.RunAsync();
 

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
@@ -848,6 +849,9 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("ExtractedText")
+                        .HasColumnType("text");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -855,6 +859,11 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("PersonId")
                         .HasColumnType("uuid");
+
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasComputedColumnSql("to_tsvector('english', coalesce(\"ExtractedText\", ''))", true);
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
@@ -876,13 +885,60 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PersonId");
 
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
+
                     b.ToTable("CandidateCvs", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Recruiting.CandidateNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AuthorId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("CandidateNotes", (string)null);
                 });
 
             modelBuilder.Entity("HrPortal.Domain.Recruiting.CandidateProfile", b =>
                 {
                     b.Property<Guid>("PersonId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("BlacklistReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .IsFixedLength();
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -907,10 +963,45 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         .HasColumnType("character(3)")
                         .IsFixedLength();
 
+                    b.Property<decimal?>("ExperienceYears")
+                        .HasPrecision(4, 1)
+                        .HasColumnType("numeric(4,1)");
+
+                    b.Property<DateTimeOffset?>("LastContactedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<int?>("NoticePeriodDays")
                         .HasColumnType("integer");
 
+                    b.PrimitiveCollection<List<string>>("Skills")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
                     b.HasKey("PersonId");
+
+                    b.HasIndex("LastContactedAtUtc");
+
+                    b.HasIndex("Skills");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Skills"), "GIN");
+
+                    b.HasIndex("Tags");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Tags"), "GIN");
+
+                    b.HasIndex("CountryCode", "Status");
 
                     b.ToTable("CandidateProfiles", (string)null);
                 });
@@ -1053,6 +1144,51 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                             Name = "Other",
                             SortOrder = 100
                         });
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Recruiting.ResumeBankStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("AtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("ToStatus")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("ResumeBankStatusChanges", (string)null);
                 });
 
             modelBuilder.Entity("HrPortal.Domain.Recruiting.Scorecard", b =>
@@ -1548,8 +1684,23 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("HrPortal.Domain.Recruiting.CandidateNote", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Employees.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HrPortal.Domain.Recruiting.CandidateProfile", b =>
                 {
+                    b.HasOne("HrPortal.Domain.Organisation.CountrySettings", null)
+                        .WithMany()
+                        .HasForeignKey("CountryCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("HrPortal.Domain.Employees.Person", null)
                         .WithOne()
                         .HasForeignKey("HrPortal.Domain.Recruiting.CandidateProfile", "PersonId")
@@ -1577,6 +1728,15 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                     b.HasOne("HrPortal.Domain.Recruiting.Interview", null)
                         .WithMany("Panel")
                         .HasForeignKey("InterviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Recruiting.ResumeBankStatusChange", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Recruiting.CandidateProfile", null)
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1689,6 +1849,11 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("HrPortal.Domain.Recruiting.Application", b =>
                 {
                     b.Navigation("History");
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Recruiting.CandidateProfile", b =>
+                {
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("HrPortal.Domain.Recruiting.Interview", b =>

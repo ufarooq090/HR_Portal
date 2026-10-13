@@ -3,6 +3,7 @@ using HrPortal.Domain.Audit;
 using HrPortal.Domain.Common;
 using HrPortal.Domain.Employees;
 using HrPortal.Domain.Organisation;
+using HrPortal.Domain.Recruiting;
 using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Persistence;
 using HrPortal.Infrastructure.Security;
@@ -392,7 +393,7 @@ public static class EmployeeEndpoints
     }
 
     private static async Task<IResult> ChangeStatusAsync(
-        Guid id, StatusChangeRequest request, HrPortalDbContext db, IAccessContext accessContext, TimeProvider clock, CancellationToken ct)
+        Guid id, StatusChangeRequest request, HrPortalDbContext db, IAccessContext accessContext, ICurrentUser user, TimeProvider clock, CancellationToken ct)
     {
         var access = await accessContext.GetAsync(ct);
         if (await EmployeeScope.DenyAsync(db, access, id, access.ScopesFor(HrModule.EmployeeRecords, Capability.Edit), ct) is { } denied)
@@ -410,6 +411,17 @@ public static class EmployeeEndpoints
         employee.ChangeStatus(
             request.Status, request.EffectiveDate, request.LastWorkingDate, EmploymentTerms.For(country, employee.Grade), request.Reason,
             await LocalTodayAsync(db, clock, id, ct));
+
+        // RB-03: leavers join the Resume Bank (rehire pool) with their exit as status, unless blacklisted.
+        if (ResumeBankStatusRules.FromEmployeeExit(employee.Status) is { } exitStatus)
+        {
+            var now = clock.GetUtcNow();
+            var profile = await db.CandidateProfiles.Include(p => p.StatusHistory).SingleOrDefaultAsync(p => p.PersonId == employee.PersonId, ct)
+                ?? db.CandidateProfiles.Add(new CandidateProfile(employee.PersonId, employee.CountryCode, now)).Entity;
+            profile.ApplyAutomaticStatus(
+                exitStatus, StatusChangeSource.EmployeeExit, $"Employee {employee.EmployeeNumber} {employee.Status.ToString().ToLowerInvariant()}",
+                new Domain.Requisitions.Actor(user.UserId, user.DisplayName, access.EmployeeId), now);
+        }
 
         // Someone who has left gets no further job changes.
         if (!employee.Status.IsActive())

@@ -1,7 +1,9 @@
 using Azure.Storage.Blobs;
 using HrPortal.Domain.Audit;
 using HrPortal.Domain.Files;
+using HrPortal.Domain.Recruiting;
 using HrPortal.Infrastructure.Employees;
+using HrPortal.Infrastructure.Recruiting;
 using HrPortal.Infrastructure.Files;
 using HrPortal.Domain.Notifications;
 using HrPortal.Domain.Security;
@@ -47,6 +49,8 @@ public static class DependencyInjection
         services.AddScoped<ScheduledChangeRunner>();
         services.AddOptions<PortalOptions>().Bind(configuration.GetSection(PortalOptions.SectionName));
         services.AddScoped<NotificationEmailJob>();
+        services.AddSingleton<ICvTextExtractor, CvTextExtractor>();
+        services.AddScoped<CandidateImporter>();
 
         // Microsoft Graph implementations replace these for deployed environments.
         services.AddOptions<SmtpEmailOptions>().Bind(configuration.GetSection("Email:Smtp"));

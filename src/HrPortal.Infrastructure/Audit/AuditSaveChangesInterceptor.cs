@@ -17,6 +17,9 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, TimePr
 {
     public const string MaskedValue = "***";
 
+    /// <summary>Stands in for <see cref="NotAuditedAttribute"/> values, e.g. a CV's text.</summary>
+    public const string NotRecordedValue = "(not recorded)";
+
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
         AddAuditEntries(eventData.Context);
@@ -96,8 +99,15 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, TimePr
         foreach (var property in entry.Properties)
         {
             var name = property.Metadata.Name;
+            // Database-computed values (e.g. a search vector) are not the user's data.
+            if (property.Metadata.GetComputedColumnSql() is not null)
+            {
+                continue;
+            }
+
             var sensitive = property.Metadata.PropertyInfo?.GetCustomAttribute<SensitiveAttribute>() is not null;
-            object? Mask(object? value) => sensitive && value is not null ? MaskedValue : value;
+            var notAudited = property.Metadata.PropertyInfo?.GetCustomAttribute<NotAuditedAttribute>() is not null;
+            object? Mask(object? value) => value is null ? null : sensitive ? MaskedValue : notAudited ? NotRecordedValue : value;
 
             switch (action)
             {

@@ -190,15 +190,28 @@ public static class CandidateEndpoints
         var person = await db.People.SingleAsync(p => p.Id == personId, ct);
         person.Rename(request.GivenName, request.FamilyName);
         person.UpdateContact(request.Email, request.Phone);
-        var profile = await db.CandidateProfiles.SingleOrDefaultAsync(c => c.PersonId == personId, ct)
-            ?? db.CandidateProfiles.Add(new CandidateProfile(personId, clock.GetUtcNow())).Entity;
+        var profile = await db.CandidateProfiles.SingleOrDefaultAsync(c => c.PersonId == personId, ct);
+        if (profile is null)
+        {
+            var country = await (from a in db.Applications where a.PersonId == personId join r in db.Requisitions on a.RequisitionId equals r.Id orderby a.AppliedAtUtc select r.CountryCode).FirstAsync(ct);
+            profile = db.CandidateProfiles.Add(new CandidateProfile(personId, country, clock.GetUtcNow())).Entity;
+        }
+
         await ApplyProfileAsync(db, profile, request, ct);
         await db.SaveChangesAsync(ct);
         return Results.Ok(await DetailAsync(db, access, personId, permissions, ct));
     }
 
     private static async Task<IResult> UploadCvAsync(
-        Guid personId, IFormFile? file, HrPortalDbContext db, IAccessContext accessContext, ICurrentUser user, IFileStore files, TimeProvider clock, CancellationToken ct)
+        Guid personId,
+        IFormFile? file,
+        HrPortalDbContext db,
+        IAccessContext accessContext,
+        ICurrentUser user,
+        IFileStore files,
+        ICvTextExtractor extractor,
+        TimeProvider clock,
+        CancellationToken ct)
     {
         var access = await accessContext.GetAsync(ct);
         var (permissions, denied) = await PermissionsAsync(db, access, personId, ct);
@@ -223,8 +236,10 @@ public static class CandidateEndpoints
             file.FileName, content.Length, content.GetBuffer().AsSpan(0, (int)Math.Min(content.Length, UploadPolicy.HeaderLength)), UploadPolicy.CvExtensions);
         content.Position = 0;
 
+        // RB-04: the text is kept for full-text search; the file itself goes to blob storage.
+        var text = extractor.Extract(new MemoryStream(content.ToArray(), writable: false), upload.ContentType);
         var key = await files.SaveAsync(CandidateCv.Container, upload.FileName, upload.ContentType, content, ct);
-        var cv = new CandidateCv(personId, upload, key, user.DisplayName, clock.GetUtcNow());
+        var cv = new CandidateCv(personId, upload, key, user.DisplayName, clock.GetUtcNow(), text);
         db.CandidateCvs.Add(cv);
         try
         {
@@ -287,9 +302,13 @@ public static class CandidateEndpoints
         }
     }
 
-    private sealed record CandidatePermissions(bool CanEdit, bool CanSeeCompensation, IReadOnlyList<Guid> VisibleApplicationIds);
+    /// <param name="CanSeeContact">Hiring managers browsing the Resume Bank do not get contact details of candidates outside their requisitions.</param>
+    private sealed record CandidatePermissions(bool CanEdit, bool CanSeeCompensation, bool CanSeeContact, IReadOnlyList<Guid> VisibleApplicationIds);
 
-    /// <summary>A person is visible through the applications the user may see; permissions are the union over those.</summary>
+    /// <summary>
+    /// A person is visible through the applications the user may see, or through the Resume Bank (HR in the
+    /// candidate's country; hiring managers everyone). Permissions are the union.
+    /// </summary>
     private static async Task<(CandidatePermissions? Permissions, IResult? Denied)> PermissionsAsync(
         HrPortalDbContext db, UserAccess access, Guid personId, CancellationToken ct)
     {
@@ -304,7 +323,9 @@ public static class CandidateEndpoints
                 join r in db.Requisitions on a.RequisitionId equals r.Id
                 select new { a.Id, r.CountryCode, r.RequesterEmployeeId, r.HiringManagerEmployeeId })
             .ToListAsync(ct);
-        if (visible.Count == 0)
+        var profileCountry = await db.CandidateProfiles.Where(c => c.PersonId == personId).Select(c => c.CountryCode).SingleOrDefaultAsync(ct);
+        var resumeBank = profileCountry is null ? null : ResumeBankRules.For(access, profileCountry, hiringManagerOfAnApplication: false);
+        if (visible.Count == 0 && resumeBank is not { CanView: true })
         {
             return (null, Results.Forbid());
         }
@@ -316,7 +337,12 @@ public static class CandidateEndpoints
             perApplication.Add(RecruitingRules.For(access, new ApplicationFacts(a.CountryCode, a.RequesterEmployeeId, a.HiringManagerEmployeeId, panelist)));
         }
 
-        return (new CandidatePermissions(perApplication.Any(p => p.CanManage), perApplication.Any(p => p.CanSeeCompensation), visible.Select(a => a.Id).ToList()), null);
+        return (new CandidatePermissions(
+                perApplication.Any(p => p.CanManage) || resumeBank?.CanEdit == true,
+                perApplication.Any(p => p.CanSeeCompensation) || resumeBank?.CanSeeCompensation == true,
+                visible.Count > 0 || resumeBank?.CanSeeContact == true,
+                visible.Select(a => a.Id).ToList()),
+            null);
     }
 
     private static async Task<CandidateDetail> DetailAsync(
@@ -331,7 +357,9 @@ public static class CandidateEndpoints
         MoneyDto? Show(Money? money) => permissions.CanSeeCompensation && money is { } m ? new MoneyDto(m.Amount, m.Currency) : null;
 
         return new CandidateDetail(
-            person.Id, person.GivenName, person.FamilyName, person.PersonalEmail, person.Phone,
+            person.Id, person.GivenName, person.FamilyName,
+            permissions.CanSeeContact ? person.PersonalEmail : null,
+            permissions.CanSeeContact ? person.Phone : null,
             profile?.CurrentEmployer, profile?.NoticePeriodDays, Show(profile?.CurrentCtc), Show(profile?.ExpectedCtc),
             permissions.CanSeeCompensation, permissions.CanEdit, applications, cvs);
     }

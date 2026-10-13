@@ -2,6 +2,9 @@ import { createBrowserRouter } from 'react-router'
 import { HomePage } from '../pages/HomePage'
 import { HrAccessPage } from '../pages/HrAccessPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { ImportCandidatesPage } from '../pages/resumeBank/ImportCandidatesPage'
+import { ResumeBankPage } from '../pages/resumeBank/ResumeBankPage'
+import { ResumeBankProfilePage } from '../pages/resumeBank/ResumeBankProfilePage'
 import {
   CountriesPage,
   DepartmentsPage,
@@ -42,6 +45,9 @@ export const router = createBrowserRouter([
       { path: 'applications/:id', element: <ApplicationPage /> },
       { path: 'candidates', element: <CandidatesPage /> },
       { path: 'interviews', element: <MyInterviewsPage /> },
+      { path: 'resume-bank', element: <ResumeBankPage /> },
+      { path: 'resume-bank/import', element: <ImportCandidatesPage /> },
+      { path: 'resume-bank/:personId', element: <ResumeBankProfilePage /> },
       { path: 'settings/rejection-reasons', element: <RejectionReasonsPage /> },
       { path: 'settings/approval-chains', element: <ApprovalChainsPage /> },
       { path: 'settings/countries', element: <CountriesPage /> },

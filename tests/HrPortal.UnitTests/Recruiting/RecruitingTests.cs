@@ -163,7 +163,7 @@ public class RecruitingTests
     [Fact]
     public void MC_02_candidate_salary_is_in_a_country_currency()
     {
-        var profile = new CandidateProfile(Guid.NewGuid(), Now);
+        var profile = new CandidateProfile(Guid.NewGuid(), "PK", Now);
         var currencies = new HashSet<string> { "PKR", "USD" };
 
         profile.Update("Acme", 30, Money.Pkr(100), Money.Usd(200), currencies);
