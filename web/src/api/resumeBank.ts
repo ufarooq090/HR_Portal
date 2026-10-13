@@ -121,6 +121,7 @@ export const statusLabels: Record<ResumeBankStatus, string> = {
   OfferDeclined: 'Offer declined',
   Resigned: 'Resigned',
   Terminated: 'Terminated',
+  Absconded: 'Absconded',
   Hired: 'Hired',
   Blacklisted: 'Blacklisted',
 }

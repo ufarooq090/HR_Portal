@@ -43,8 +43,9 @@ async function importCandidate(request: APIRequestContext, given: string, skill:
   return search.items.find((i) => i.name === `${given} Bank`)!.personId
 }
 
-async function openRequisition(request: APIRequestContext): Promise<{ id: string; number: string; title: string }> {
-  const headers = asUser('HiringManager', 'PK')
+/** Raised by the line manager, the PK hiring manager is not this requisition's hiring manager. */
+async function openRequisition(request: APIRequestContext, requester = 'HiringManager'): Promise<{ id: string; number: string; title: string }> {
+  const headers = asUser(requester, 'PK')
   const get = async <T>(path: string) => (await (await request.get(`${apiUrl}${path}`, { headers })).json()) as T
   const departments = await get<{ id: string; code: string }[]>('/api/organisation/departments')
   const offices = await get<{ id: string; name: string }[]>('/api/organisation/locations')
@@ -160,7 +161,7 @@ test('RB-03: only an HR Admin can blacklist, with a reason; blacklisted candidat
   await expect(page.getByRole('button', { name: 'Add to requisition' })).toBeVisible()
 })
 
-test('RB-08 and scoping: HR adds a candidate to a requisition in one click; other hiring managers see CVs and outcomes but not contact, salary or notes', async ({
+test('RB-08 and MC-03 scoping: HR adds a candidate to a requisition in one click; hiring managers in the country see CVs and outcomes but not contact, salary or notes; the other country sees nothing', async ({
   page,
   request,
 }) => {
@@ -171,7 +172,7 @@ test('RB-08 and scoping: HR adds a candidate to a requisition in one click; othe
     headers: asUser('HrExecutive', 'PK'),
     multipart: { file: { name: 'hira-cv.pdf', mimeType: 'application/pdf', buffer: pdf('Analyst with Power BI') } },
   })
-  const requisition = await openRequisition(request)
+  const requisition = await openRequisition(request, 'LineManager')
 
   await signInAs(page, 'HrExecutive', 'PK')
   await page.goto(`/resume-bank/${personId}`)
@@ -183,7 +184,7 @@ test('RB-08 and scoping: HR adds a candidate to a requisition in one click; othe
   await expect(page.getByRole('table', { name: 'Applications' })).toContainText(requisition.number)
 
   await switchUser(page, devName('HrExecutive', 'PK'))
-  await page.getByRole('button', { name: `Sign in as ${devName('HiringManager', 'US')}` }).click()
+  await page.getByRole('button', { name: `Sign in as ${devName('HiringManager', 'PK')}` }).click()
   await openNav(page, 'Resume Bank')
   await page.getByRole('searchbox', { name: 'Search CVs, names and employers' }).fill(`${given} Bank`)
   await results(page).getByRole('link', { name: `${given} Bank` }).click()
@@ -198,11 +199,19 @@ test('RB-08 and scoping: HR adds a candidate to a requisition in one click; othe
   await expect(page.getByRole('button', { name: 'Set status…' })).toBeHidden()
   await expect(page.getByRole('heading', { name: 'Add a note' })).toBeHidden()
 
-  // The requisition's own hiring manager sees the salary.
-  await switchUser(page, devName('HiringManager', 'US'))
-  await page.getByRole('button', { name: `Sign in as ${devName('HiringManager', 'PK')}` }).click()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'hira-cv.pdf' }).click()
+  expect((await download).suggestedFilename()).toBe('hira-cv.pdf')
+
+  // MC-03: the US hiring manager cannot find or open a Pakistan candidate.
+  await switchUser(page, devName('HiringManager', 'PK'))
+  await page.getByRole('button', { name: `Sign in as ${devName('HiringManager', 'US')}` }).click()
+  await openNav(page, 'Resume Bank')
+  await page.getByRole('searchbox', { name: 'Search CVs, names and employers' }).fill(`${given} Bank`)
+  await expect(page.getByText('No candidates match.')).toBeVisible()
   await page.goto(`/resume-bank/${personId}`)
-  await expect(page.getByText(/PKR\s2,500,000/).first()).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: `${given} Bank` })).toBeHidden()
+  expect((await request.get(`${apiUrl}/api/candidates/${personId}`, { headers: asUser('HiringManager', 'US') })).status()).toBe(403)
 })
 
 test('Resume Bank is not offered to line managers, interviewers or employees', async ({ page, request }) => {

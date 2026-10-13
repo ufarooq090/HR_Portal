@@ -52,7 +52,7 @@ public static class PermissionMatrix
             [HrModule.EmployeeRecords] = new(View, Team),
             [HrModule.Requisitions] = new(View | Create, Department),
             [HrModule.Candidates] = new(View | Approve, Assigned),
-            [HrModule.ResumeBank] = new(View, All),
+            [HrModule.ResumeBank] = new(View, HomeCountry),
             [HrModule.Onboarding] = new(View, Team),
             [HrModule.Offboarding] = new(View, Team),
             [HrModule.Attendance] = new(View, Team),

@@ -226,7 +226,7 @@ public sealed class CandidateCv : Entity
         StorageKey = storageKey;
         UploadedBy = uploadedBy;
         UploadedAtUtc = uploadedAt.ToUniversalTime();
-        ExtractedText = text is null ? null : text.Length > MaxTextLength ? text[..MaxTextLength] : text;
+        RecordText(text, uploadedAt);
     }
 
     public Guid PersonId { get; private set; }
@@ -246,6 +246,16 @@ public sealed class CandidateCv : Entity
     /// <summary>RB-04: the CV's text for full-text search; null for formats we cannot read (e.g. old .doc).</summary>
     [NotAudited]
     public string? ExtractedText { get; private set; }
+
+    /// <summary>When text extraction was last attempted; null for CVs uploaded before CV search existed.</summary>
+    public DateTimeOffset? TextExtractedAtUtc { get; private set; }
+
+    /// <summary>Stores the extracted text (null when the format cannot be read) and when extraction ran.</summary>
+    public void RecordText(string? text, DateTimeOffset at)
+    {
+        ExtractedText = text is null ? null : text.Length > MaxTextLength ? text[..MaxTextLength] : text;
+        TextExtractedAtUtc = at.ToUniversalTime();
+    }
 }
 
 /// <summary>Pulls plain text out of a CV for full-text search (RB-04).</summary>

@@ -46,6 +46,7 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 }
 
 app.ScheduleRecurringJobs();
+await app.EnqueueOneTimeJobsAsync();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();

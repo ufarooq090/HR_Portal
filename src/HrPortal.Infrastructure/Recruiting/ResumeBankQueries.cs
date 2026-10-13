@@ -22,7 +22,7 @@ public sealed record ResumeBankFilters(
 
 public static class ResumeBankQueries
 {
-    /// <summary>HR see candidates based in their countries (MC-03); hiring managers see everyone; others no one.</summary>
+    /// <summary>HR see candidates based in their countries, hiring managers those in their own country (MC-03); others no one.</summary>
     public static IQueryable<CandidateProfile> VisibleTo(this IQueryable<CandidateProfile> profiles, UserAccess access)
     {
         var scopes = access.ScopesFor(HrModule.ResumeBank, Capability.View);
@@ -35,6 +35,12 @@ public static class ResumeBankQueries
         {
             var countries = access.HrCountries.Codes.ToList();
             return profiles.Where(p => countries.Contains(p.CountryCode));
+        }
+
+        if (scopes.Contains(DataScope.HomeCountry))
+        {
+            var home = access.HomeCountryCode;
+            return profiles.Where(p => p.CountryCode == home);
         }
 
         return profiles.Where(_ => false);

@@ -615,7 +615,7 @@ export interface RejectionReason {
 }
 
 /** Resume Bank statuses (RB-03). Blacklisted is set only by an HR Admin, with a reason. */
-export const resumeBankStatuses = ['Shortlisted', 'NotShortlisted', 'NoShow', 'OfferDeclined', 'Resigned', 'Terminated', 'Hired', 'Blacklisted'] as const
+export const resumeBankStatuses = ['Shortlisted', 'NotShortlisted', 'NoShow', 'OfferDeclined', 'Resigned', 'Terminated', 'Absconded', 'Hired', 'Blacklisted'] as const
 export type ResumeBankStatus = (typeof resumeBankStatuses)[number]
 
 export interface ResumeBankRow {

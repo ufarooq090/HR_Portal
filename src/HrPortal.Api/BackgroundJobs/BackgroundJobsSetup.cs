@@ -2,6 +2,7 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using HrPortal.Infrastructure;
 using HrPortal.Infrastructure.Employees;
+using HrPortal.Infrastructure.Recruiting;
 
 namespace HrPortal.Api.BackgroundJobs;
 
@@ -40,4 +41,17 @@ public static class BackgroundJobsSetup
             ScheduledChangeRunner.RecurringJobId,
             runner => runner.ApplyDueAsync(CancellationToken.None),
             Cron.Hourly());
+
+    /// <summary>
+    /// One-time jobs, enqueued only while there is work for them, so they run once after the deployment that needs
+    /// them; each is safe to run again. CV text extraction makes CVs uploaded before CV search existed searchable.
+    /// </summary>
+    public static async Task EnqueueOneTimeJobsAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        if (await scope.ServiceProvider.GetRequiredService<CvTextBackfill>().IsNeededAsync(CancellationToken.None))
+        {
+            app.Services.GetRequiredService<IBackgroundJobClient>().Enqueue<CvTextBackfill>(job => job.RunAsync(CancellationToken.None));
+        }
+    }
 }

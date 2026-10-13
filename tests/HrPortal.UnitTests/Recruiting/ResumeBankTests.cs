@@ -34,7 +34,7 @@ public class ResumeBankTests
     [Theory]
     [InlineData(EmploymentStatus.Resigned, ResumeBankStatus.Resigned)]
     [InlineData(EmploymentStatus.Terminated, ResumeBankStatus.Terminated)]
-    [InlineData(EmploymentStatus.Absconded, ResumeBankStatus.Terminated)]
+    [InlineData(EmploymentStatus.Absconded, ResumeBankStatus.Absconded)]
     [InlineData(EmploymentStatus.Confirmed, null)]
     public void RB_03_employee_exits_set_the_resume_bank_status(EmploymentStatus status, ResumeBankStatus? expected)
     {
@@ -102,18 +102,23 @@ public class ResumeBankTests
     }
 
     [Fact]
-    public void RB_scoping_hr_by_country_hiring_managers_without_contact_salary_or_notes()
+    public void RB_scoping_hr_and_hiring_managers_by_country_hiring_managers_without_contact_salary_or_notes()
     {
         var pkExecutive = ResumeBankRules.For(User([Roles.HrExecutive]), "PK", false);
         var usExecutiveOnPk = ResumeBankRules.For(User([Roles.HrExecutive], "US"), "PK", false);
         var hrAdmin = ResumeBankRules.For(User([Roles.HrAdmin], "US"), "PK", false);
-        var hiringManager = ResumeBankRules.For(User([Roles.HiringManager]), "US", false);
-        var ownHiringManager = ResumeBankRules.For(User([Roles.HiringManager]), "US", true);
+        var hiringManager = ResumeBankRules.For(User([Roles.HiringManager], "US"), "US", false);
+        var otherCountryManager = ResumeBankRules.For(User([Roles.HiringManager], "PK"), "US", false);
+        var ownHiringManager = ResumeBankRules.For(User([Roles.HiringManager], "PK"), "US", true);
 
         Assert.Equal(new ResumeBankPermissions(true, true, true, true, true, false), pkExecutive);
         Assert.False(usExecutiveOnPk.CanView);
         Assert.Equal(new ResumeBankPermissions(true, true, true, true, true, true), hrAdmin);
         Assert.Equal(new ResumeBankPermissions(true, false, false, false, false, false), hiringManager);
+        Assert.False(otherCountryManager.CanView);
+
+        // A candidate on the manager's own requisition stays visible to them, as in the Candidate Tracker.
+        Assert.True(ownHiringManager.CanView);
         Assert.True(ownHiringManager.CanSeeCompensation);
         Assert.False(ownHiringManager.CanSeeNotes);
         Assert.False(ResumeBankRules.For(User([Roles.LineManager, Roles.Interviewer, Roles.Employee]), "PK", false).CanView);

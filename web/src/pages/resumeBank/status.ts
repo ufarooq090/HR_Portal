@@ -8,6 +8,7 @@ export function statusBadgeColor(status: ResumeBankStatus): BadgeColor {
       return 'success'
     case 'Blacklisted':
     case 'Terminated':
+    case 'Absconded':
       return 'danger'
     case 'NoShow':
     case 'OfferDeclined':

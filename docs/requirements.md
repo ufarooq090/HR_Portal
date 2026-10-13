@@ -454,6 +454,8 @@ HR and IT answered the discovery questions on 12 Oct 2026; the requirements abov
 | Terminations (13 Oct 2026) | Only HR Admins can record a termination | Confirmed; applies to the status change as well as termination emails and letters (EMP-04) |
 | Future-dated job changes (13 Oct 2026) | Transfers, promotions, department and manager changes can have a future effective date. They are stored as scheduled, shown as "Upcoming" on the employee record, and HR can edit or cancel them until they take effect | A Hangfire job applies them automatically from local midnight in the employee's office time zone, as an audited system change. The reporting-loop check runs when scheduling and again when applying; a change that can no longer be applied is marked "Not applied" with the reason. Pending changes are cancelled when the employee leaves (EMP-05) |
 | Currency (13 Oct 2026) | Salaries are always shown in the employee's country currency, PKR for Pakistan and USD for the US. No conversion anywhere | Reports and totals covering both countries show separate PKR and USD figures, never added together (MC-02) |
+| Hiring managers and the Resume Bank (13 Oct 2026) | Hiring managers search and view Resume Bank candidates in their own country only: CVs, skills and past outcomes, never contact details or notes. Every CV download is recorded in the audit log | A candidate on one of the manager's own requisitions stays visible to them, with salary, as in the Candidate Tracker (MC-03, RB-04) |
+| Absconded in the Resume Bank (13 Oct 2026) | "Absconded" is its own Resume Bank status, set automatically when an employee absconds, not merged into Terminated | RB-03 |
 
 **Still open**
 

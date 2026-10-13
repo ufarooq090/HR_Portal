@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddOptions<PortalOptions>().Bind(configuration.GetSection(PortalOptions.SectionName));
         services.AddScoped<NotificationEmailJob>();
         services.AddSingleton<ICvTextExtractor, CvTextExtractor>();
+        services.AddScoped<CvTextBackfill>();
         services.AddScoped<CandidateImporter>();
 
         // Microsoft Graph implementations replace these for deployed environments.

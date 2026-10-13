@@ -160,21 +160,8 @@ public class CandidateTrackerTests(HrPortalApiFactory factory)
 
         var expected = allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden;
         Assert.Equal(expected, detail.StatusCode);
+        Assert.Equal(expected, candidate.StatusCode);
         Assert.Equal(allowed, list!.Any(a => a.Id == card.Id));
-
-        // Every hiring manager may look candidates up in the Resume Bank (RB scoping): the person and their CVs, but
-        // not their contact details, salary or applications on other managers' requisitions.
-        if (!allowed && devUser.EndsWith("-hiringmanager", StringComparison.Ordinal))
-        {
-            Assert.Equal(HttpStatusCode.OK, candidate.StatusCode);
-            var limited = (await candidate.Content.ReadFromJsonAsync<CandidateDetail>())!;
-            Assert.Equal((null, null, null, false), (limited.Email, limited.Phone, limited.CurrentCtc, limited.CanEdit));
-            Assert.Empty(limited.Applications);
-        }
-        else
-        {
-            Assert.Equal(expected, candidate.StatusCode);
-        }
     }
 
     [Fact]

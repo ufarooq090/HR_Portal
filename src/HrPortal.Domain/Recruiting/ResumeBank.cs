@@ -16,6 +16,9 @@ public enum ResumeBankStatus
     OfferDeclined,
     Resigned,
     Terminated,
+
+    /// <summary>Left without notice; kept apart from Terminated so rehiring decisions can tell them apart.</summary>
+    Absconded,
     Hired,
     Blacklisted,
 }
@@ -43,11 +46,11 @@ public static class ResumeBankStatusRules
         _ => null,
     };
 
-    /// <summary>Absconding is recorded as Terminated, the closest Resume Bank status.</summary>
     public static ResumeBankStatus? FromEmployeeExit(EmploymentStatus status) => status switch
     {
         EmploymentStatus.Resigned => ResumeBankStatus.Resigned,
-        EmploymentStatus.Terminated or EmploymentStatus.Absconded => ResumeBankStatus.Terminated,
+        EmploymentStatus.Terminated => ResumeBankStatus.Terminated,
+        EmploymentStatus.Absconded => ResumeBankStatus.Absconded,
         _ => null,
     };
 }
@@ -126,9 +129,9 @@ public sealed record ResumeBankPermissions(
 
 /// <summary>
 /// Resume Bank access (RB, permission matrix "Resume Bank"): HR see and manage candidates in their countries
-/// (MC-03). Hiring managers search and view everyone's CVs, skills and past outcomes, but not contact details,
-/// salary or notes, unless the candidate is on one of their own requisitions (then the Candidate Tracker rules give
-/// them salary and that application's notes). Only HR Admins blacklist.
+/// (MC-03). Hiring managers search and view the CVs, skills and past outcomes of candidates in their own country
+/// (MC-03), but not contact details, salary or notes. A candidate on one of their own requisitions is visible to them
+/// whatever the country, with salary, as in the Candidate Tracker. Only HR Admins blacklist.
 /// </summary>
 public static class ResumeBankRules
 {
@@ -139,9 +142,11 @@ public static class ResumeBankRules
     public static ResumeBankPermissions For(UserAccess access, string countryCode, bool hiringManagerOfAnApplication)
     {
         var hr = IsHrFor(access, countryCode, Capability.View);
-        var everywhere = access.ScopesFor(HrModule.ResumeBank, Capability.View).Contains(DataScope.All);
+        var scopes = access.ScopesFor(HrModule.ResumeBank, Capability.View);
+        var inScope = scopes.Contains(DataScope.All)
+            || (scopes.Contains(DataScope.HomeCountry) && string.Equals(access.HomeCountryCode, countryCode, StringComparison.OrdinalIgnoreCase));
         return new ResumeBankPermissions(
-            CanView: hr || everywhere,
+            CanView: hr || inScope || hiringManagerOfAnApplication,
             CanEdit: IsHrFor(access, countryCode, Capability.Edit),
             CanSeeContact: hr,
             CanSeeCompensation: hr || hiringManagerOfAnApplication,

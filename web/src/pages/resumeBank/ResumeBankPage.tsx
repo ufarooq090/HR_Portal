@@ -54,7 +54,8 @@ const emptyFilters: ResumeBankFilters = {
 
 /**
  * RB-01/04: every candidate the user may see, searchable inside CV content and by filters. HR see candidates in their
- * countries, with salary; hiring managers see everyone's CVs, skills and past outcomes, without contact details or salary.
+ * countries, with salary; hiring managers see the CVs, skills and past outcomes of candidates in their own country,
+ * without contact details or salary (MC-03).
  */
 export function ResumeBankPage() {
   const styles = useStyles()

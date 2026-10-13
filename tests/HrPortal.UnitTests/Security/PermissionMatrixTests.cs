@@ -28,8 +28,8 @@ public class PermissionMatrixTests
         { HrModule.Candidates, [new(Full | Approve, Countries), new(Full, Countries), new(View | Approve, Assigned), new(View | Create, Assigned), null, null] },
 
         // Resume Bank: Full | Full | Search, view | None | None | None
-        // HR within their countries (decision 13 Oct 2026); hiring managers search everyone.
-        { HrModule.ResumeBank, [new(Full, Countries), new(Full, Countries), new(View, All), null, null, null] },
+        // HR within their countries (decision 13 Oct 2026); hiring managers within their own country (MC-03).
+        { HrModule.ResumeBank, [new(Full, Countries), new(Full, Countries), new(View, HomeCountry), null, null, null] },
 
         // Onboarding: Full | Full | View team | None | Assigned tasks | Own checklist
         { HrModule.Onboarding, [new(Full, Countries), new(Full, Countries), new(View, Team), null, new(View | Edit, Assigned), new(View | Edit, Own)] },

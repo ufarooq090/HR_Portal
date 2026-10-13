@@ -12,7 +12,9 @@ using HrPortal.Domain.Recruiting;
 using HrPortal.Domain.Requisitions;
 using HrPortal.Infrastructure.Employees;
 using HrPortal.IntegrationTests.Infrastructure;
+using HrPortal.Infrastructure.Recruiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Fonts.Standard14Fonts;
@@ -83,9 +85,10 @@ public class ResumeBankTests(HrPortalApiFactory factory)
         return await factory.WithDbAsync(db => db.People.Where(p => p.PersonalEmail == email).Select(p => p.Id).SingleAsync());
     }
 
-    private async Task<RequisitionDetail> OpenRequisitionAsync(string country = "PK")
+    /// <param name="role">Raised by the line manager, the country's hiring manager is not this requisition's hiring manager.</param>
+    private async Task<RequisitionDetail> OpenRequisitionAsync(string country = "PK", string role = "hiringmanager")
     {
-        var requester = $"dev-{country.ToLowerInvariant()}-hiringmanager";
+        var requester = $"dev-{country.ToLowerInvariant()}-{role}";
         var ids = await factory.WithDbAsync(async db => new
         {
             Department = await db.Departments.Where(d => d.Code == "ENG").Select(d => d.Id).SingleAsync(),
@@ -171,7 +174,7 @@ public class ResumeBankTests(HrPortalApiFactory factory)
     }
 
     [Fact]
-    public async Task RB_scope_HR_see_their_countries_and_hiring_managers_see_CVs_and_outcomes_without_contact_salary_or_notes()
+    public async Task MC_03_RB_scope_HR_and_hiring_managers_see_their_country_hiring_managers_without_contact_salary_or_notes()
     {
         var skill = Word();
         var pk = await ImportOneAsync("PK", skill, ctc: "3000000", notes: "Prefers remote work");
@@ -183,18 +186,26 @@ public class ResumeBankTests(HrPortalApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, (await factory.CreateClientAs(Hr).GetAsync($"/api/resume-bank/{us}")).StatusCode);
         Assert.Equal(2, (await SearchAsync($"skills={skill}", HrAdmin)).Total);
 
-        var managerRows = await SearchAsync($"skills={skill}", "dev-us-hiringmanager");
-        Assert.Equal(2, managerRows.Total);
-        Assert.All(managerRows.Items, r => Assert.Null(r.CurrentCtc));
-        Assert.Empty((await SearchAsync($"skills={skill}&maxCurrentCtc=99999999&ctcCurrency=PKR", "dev-us-hiringmanager")).Items);
+        // MC-03: hiring managers search only their own country.
+        Assert.Equal([pk], (await SearchAsync($"skills={skill}", "dev-pk-hiringmanager")).Items.Select(i => i.PersonId));
+        Assert.Equal([us], (await SearchAsync($"skills={skill}", "dev-us-hiringmanager")).Items.Select(i => i.PersonId));
+        Assert.Null((await SearchAsync($"skills={skill}", "dev-pk-hiringmanager")).Items.Single().CurrentCtc);
+        Assert.Empty((await SearchAsync($"skills={skill}&maxCurrentCtc=99999999&ctcCurrency=PKR", "dev-pk-hiringmanager")).Items);
 
-        var asManager = await DetailAsync(pk, "dev-us-hiringmanager");
+        var asManager = await DetailAsync(pk, "dev-pk-hiringmanager");
         Assert.Equal((null, null, null, null), (asManager.Email, asManager.Phone, asManager.CurrentCtc, asManager.BlacklistReason));
         Assert.Single(asManager.Cvs);
         Assert.DoesNotContain(asManager.Timeline, t => t.Kind == "note");
         Assert.False(asManager.Permissions.CanEdit);
-        var cvDownload = await factory.CreateClientAs("dev-us-hiringmanager").GetAsync($"/api/candidates/{pk}/cvs/{asManager.Cvs[0].Id}/content");
+        var cvDownload = await factory.CreateClientAs("dev-pk-hiringmanager").GetAsync($"/api/candidates/{pk}/cvs/{asManager.Cvs[0].Id}/content");
         Assert.Equal(HttpStatusCode.OK, cvDownload.StatusCode);
+
+        // The other country's hiring manager gets nothing, through either the Resume Bank or the candidate record.
+        var otherCountry = factory.CreateClientAs("dev-us-hiringmanager");
+        Assert.Equal(HttpStatusCode.Forbidden, (await otherCountry.GetAsync($"/api/resume-bank/{pk}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await otherCountry.GetAsync($"/api/candidates/{pk}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await otherCountry.GetAsync($"/api/candidates/{pk}/cvs/{asManager.Cvs[0].Id}/content")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await factory.CreateClientAs("dev-pk-hiringmanager").GetAsync($"/api/candidates/{us}")).StatusCode);
 
         var asHr = await DetailAsync(pk);
         Assert.NotNull(asHr.Email);
@@ -207,7 +218,7 @@ public class ResumeBankTests(HrPortalApiFactory factory)
             Assert.Equal(HttpStatusCode.Forbidden, (await factory.CreateClientAs(outsider).GetAsync($"/api/resume-bank/{pk}")).StatusCode);
         }
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await PostAsync("dev-us-hiringmanager", $"/api/resume-bank/{pk}/notes", new NoteRequest("Hi"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await PostAsync("dev-pk-hiringmanager", $"/api/resume-bank/{pk}/notes", new NoteRequest("Hi"))).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await factory.CreateClientAs("dev-us-hiringmanager").PostAsync("/api/resume-bank/import", Csv())).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await PostAsync("dev-us-hrexecutive", $"/api/resume-bank/{pk}/status", new StatusRequest(ResumeBankStatus.Hired, null))).StatusCode);
     }
@@ -215,21 +226,106 @@ public class ResumeBankTests(HrPortalApiFactory factory)
     [Fact]
     public async Task RB_scope_hiring_managers_see_salary_only_for_candidates_on_their_own_requisitions_and_it_is_audited()
     {
-        var person = await ImportOneAsync("PK", ctc: "2500000");
-        var requisition = await OpenRequisitionAsync();
-        Assert.Equal(HttpStatusCode.Created, (await AddToRequisitionAsync(requisition.Id, person)).StatusCode);
+        var own = await ImportOneAsync("PK", ctc: "2500000");
+        var other = await ImportOneAsync("PK", ctc: "2600000");
+        Assert.Equal(HttpStatusCode.Created, (await AddToRequisitionAsync((await OpenRequisitionAsync()).Id, own)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await AddToRequisitionAsync((await OpenRequisitionAsync(role: "linemanager")).Id, other)).StatusCode);
 
-        var own = await DetailAsync(person, "dev-pk-hiringmanager");
-        var other = await DetailAsync(person, "dev-us-hiringmanager");
+        var ownDetail = await DetailAsync(own, "dev-pk-hiringmanager");
+        var otherDetail = await DetailAsync(other, "dev-pk-hiringmanager");
 
-        Assert.Equal(new MoneyDto(2_500_000, "PKR"), own.CurrentCtc);
-        Assert.True(own.Applications.Single().CanOpen);
-        Assert.Null(other.CurrentCtc);
-        Assert.False(other.Applications.Single().CanOpen);
+        Assert.Equal(new MoneyDto(2_500_000, "PKR"), ownDetail.CurrentCtc);
+        Assert.True(ownDetail.Applications.Single().CanOpen);
+        Assert.Null(otherDetail.CurrentCtc);
+        Assert.False(otherDetail.Applications.Single().CanOpen);
         Assert.True(await factory.WithDbAsync(db => db.AuditEntries.AnyAsync(a =>
-            a.Action == AuditAction.Viewed && a.EntityType == CompensationAuditType && a.EntityId == person.ToString() && a.ActorId == "dev-pk-hiringmanager")));
+            a.Action == AuditAction.Viewed && a.EntityType == CompensationAuditType && a.EntityId == own.ToString() && a.ActorId == "dev-pk-hiringmanager")));
         Assert.False(await factory.WithDbAsync(db => db.AuditEntries.AnyAsync(a =>
-            a.Action == AuditAction.Viewed && a.EntityType == CompensationAuditType && a.EntityId == person.ToString() && a.ActorId == "dev-us-hiringmanager")));
+            a.Action == AuditAction.Viewed && a.EntityType == CompensationAuditType && a.EntityId == other.ToString() && a.ActorId == "dev-pk-hiringmanager")));
+    }
+
+    [Fact]
+    public async Task MC_03_a_candidate_on_a_hiring_managers_own_requisition_stays_visible_whatever_their_country()
+    {
+        var person = await ImportOneAsync("US");
+        Assert.Equal(HttpStatusCode.Created, (await AddToRequisitionAsync((await OpenRequisitionAsync()).Id, person, HrAdmin)).StatusCode);
+        var manager = factory.CreateClientAs("dev-pk-hiringmanager");
+
+        Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync($"/api/resume-bank/{person}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync($"/api/candidates/{person}")).StatusCode);
+        Assert.DoesNotContain(person, (await SearchAsync("pageSize=100&q=Rb", "dev-pk-hiringmanager")).Items.Select(i => i.PersonId));
+    }
+
+    [Fact]
+    public async Task RB_every_CV_download_is_audited()
+    {
+        var person = await ImportOneAsync();
+        var uploaded = await factory.CreateClientAs(Hr).PostAsync($"/api/candidates/{person}/cvs", Upload(Pdf("Audit me"), "cv.pdf"));
+        var cv = (await uploaded.Content.ReadFromJsonAsync<CvDto>())!;
+
+        foreach (var user in new[] { Hr, "dev-pk-hiringmanager" })
+        {
+            Assert.Equal(HttpStatusCode.OK, (await factory.CreateClientAs(user).GetAsync($"/api/candidates/{person}/cvs/{cv.Id}/content")).StatusCode);
+        }
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await factory.CreateClientAs("dev-us-hiringmanager").GetAsync($"/api/candidates/{person}/cvs/{cv.Id}/content")).StatusCode);
+        var downloads = await factory.WithDbAsync(db => db.AuditEntries
+            .Where(a => a.Action == AuditAction.Viewed && a.EntityType == CvDownloadAuditType && a.EntityId == cv.Id.ToString())
+            .Select(a => a.ActorId).ToListAsync());
+        Assert.Equal(new[] { Hr, "dev-pk-hiringmanager" }.Order(), downloads.Order());
+    }
+
+    [Fact]
+    public async Task RB_04_backfill_job_makes_older_CVs_searchable_and_is_safe_to_re_run()
+    {
+        var (word, person) = (Word(), await ImportOneAsync());
+        var client = factory.CreateClientAs(Hr);
+        async Task<CvDto> UploadAsync(byte[] bytes, string name)
+        {
+            var response = await client.PostAsync($"/api/candidates/{person}/cvs", Upload(bytes, name));
+            Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+            return (await response.Content.ReadFromJsonAsync<CvDto>())!;
+        }
+
+        var legacy = await UploadAsync(Pdf($"Legacy {word} profile"), "old.pdf");
+        var doc = await UploadAsync([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0, 0, 0], "old.doc");
+        var missing = await UploadAsync(Pdf("Gone"), "gone.pdf");
+
+        // As if uploaded before CV search existed; the third CV's file is no longer in storage.
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"""UPDATE "CandidateCvs" SET "ExtractedText" = NULL, "TextExtractedAtUtc" = NULL WHERE "Id" IN ({legacy.Id}, {doc.Id}, {missing.Id})"""));
+        var missingKey = "missing/" + Guid.NewGuid().ToString("N");
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"""UPDATE "CandidateCvs" SET "StorageKey" = {missingKey} WHERE "Id" = {missing.Id}"""));
+        Assert.Empty((await SearchAsync($"q={word}")).Items);
+
+        async Task<int> RunAsync()
+        {
+            using var scope = factory.Services.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<CvTextBackfill>().RunAsync(CancellationToken.None);
+        }
+
+        Assert.True(await RunAsync() >= 2);
+        Assert.Equal([person], (await SearchAsync($"q={word}")).Items.Select(i => i.PersonId));
+        var state = await factory.WithDbAsync(db => db.CandidateCvs.Where(c => c.PersonId == person)
+            .ToDictionaryAsync(c => c.Id, c => new { c.ExtractedText, c.TextExtractedAtUtc }));
+        Assert.NotNull(state[legacy.Id].TextExtractedAtUtc);
+        Assert.Null(state[doc.Id].ExtractedText);
+        Assert.NotNull(state[doc.Id].TextExtractedAtUtc);
+        Assert.Null(state[missing.Id].TextExtractedAtUtc);
+
+        // Re-running only retries the CV whose file could not be read; the others are left alone.
+        await RunAsync();
+        var again = await factory.WithDbAsync(db => db.CandidateCvs.Where(c => c.PersonId == person)
+            .ToDictionaryAsync(c => c.Id, c => c.TextExtractedAtUtc));
+        Assert.Equal(state[legacy.Id].TextExtractedAtUtc, again[legacy.Id]);
+        Assert.Equal(state[doc.Id].TextExtractedAtUtc, again[doc.Id]);
+        Assert.Null(again[missing.Id]);
+        Assert.Equal([person], (await SearchAsync($"q={word}")).Items.Select(i => i.PersonId));
+
+        // Leave nothing pending for other tests.
+        await factory.WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"""UPDATE "CandidateCvs" SET "TextExtractedAtUtc" = now() WHERE "Id" = {missing.Id}"""));
     }
 
     [Fact]
@@ -253,7 +349,7 @@ public class ResumeBankTests(HrPortalApiFactory factory)
             .Where(a => a.EntityType == nameof(CandidateProfile) && a.EntityId == person.ToString() && a.ActorId == HrAdmin)
             .Select(a => a.NewValues).ToListAsync());
         Assert.Contains(audited, v => v != null && v.Contains("Blacklisted", StringComparison.Ordinal) && v.Contains("Forged letters", StringComparison.Ordinal));
-        Assert.Null((await DetailAsync(person, "dev-us-hiringmanager")).BlacklistReason);
+        Assert.Null((await DetailAsync(person, "dev-pk-hiringmanager")).BlacklistReason);
 
         var add = await AddToRequisitionAsync(requisition.Id, person);
         Assert.Equal(HttpStatusCode.BadRequest, add.StatusCode);
@@ -269,7 +365,7 @@ public class ResumeBankTests(HrPortalApiFactory factory)
     public async Task RB_03_status_follows_the_candidate_tracker_and_is_shown_in_the_timeline()
     {
         var person = await ImportOneAsync();
-        var requisition = await OpenRequisitionAsync();
+        var requisition = await OpenRequisitionAsync(role: "linemanager");
         var added = await AddToRequisitionAsync(requisition.Id, person);
         var card = (await added.Content.ReadFromJsonAsync<ApplicationCard>())!;
 
@@ -286,25 +382,28 @@ public class ResumeBankTests(HrPortalApiFactory factory)
         Assert.Contains(detail.Timeline, t => t.Kind == "status" && t.Title.EndsWith("NotShortlisted", StringComparison.Ordinal));
 
         // Hiring managers of other requisitions see the outcome but not the free-text reason.
-        Assert.Contains((await DetailAsync(person, "dev-us-hiringmanager")).Timeline, t => t.Kind == "stage" && t.Detail == "Skills do not match the role");
+        Assert.Contains((await DetailAsync(person, "dev-pk-hiringmanager")).Timeline, t => t.Kind == "stage" && t.Detail == "Skills do not match the role");
     }
 
     [Fact]
-    public async Task RB_03_employees_who_leave_get_resigned_or_terminated_status()
+    public async Task RB_03_employees_who_leave_get_resigned_terminated_or_absconded_status()
     {
         var resigning = await factory.CreateEmployeeAsync("PK");
         var terminated = await factory.CreateEmployeeAsync("PK");
+        var absconded = await factory.CreateEmployeeAsync("PK");
 
         Assert.Equal(HttpStatusCode.OK, (await PostAsync(HrAdmin, $"/api/employees/{resigning.Id}/status", new StatusChangeRequest(EmploymentStatus.Resigned, new DateOnly(2026, 9, 1), null, "Moving abroad"))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await PostAsync(HrAdmin, $"/api/employees/{terminated.Id}/status", new StatusChangeRequest(EmploymentStatus.Terminated, new DateOnly(2026, 9, 1), null, "Misconduct"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PostAsync(HrAdmin, $"/api/employees/{absconded.Id}/status", new StatusChangeRequest(EmploymentStatus.Absconded, new DateOnly(2026, 9, 1), null, "Stopped coming in"))).StatusCode);
 
         var statuses = await factory.WithDbAsync(async db => await (
             from p in db.CandidateProfiles
             join e in db.Employees on p.PersonId equals e.PersonId
-            where e.Id == resigning.Id || e.Id == terminated.Id
+            where e.Id == resigning.Id || e.Id == terminated.Id || e.Id == absconded.Id
             select new { e.Id, p.Status, p.CountryCode }).ToListAsync());
         Assert.Equal((ResumeBankStatus.Resigned, "PK"), statuses.Where(s => s.Id == resigning.Id).Select(s => (s.Status!.Value, s.CountryCode)).Single());
         Assert.Equal(ResumeBankStatus.Terminated, statuses.Single(s => s.Id == terminated.Id).Status);
+        Assert.Equal(ResumeBankStatus.Absconded, statuses.Single(s => s.Id == absconded.Id).Status);
     }
 
     [Fact]

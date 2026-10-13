@@ -33,10 +33,12 @@ describe('RB-03 statuses', () => {
       'Offer declined',
       'Resigned',
       'Terminated',
+      'Absconded',
       'Hired',
       'Blacklisted',
     ])
     expect(statusBadgeColor('Blacklisted')).toBe('danger')
+    expect(statusBadgeColor('Absconded')).toBe('danger')
     expect(statusBadgeColor('Hired')).toBe('success')
     expect(statusBadgeColor('Resigned')).toBe('subtle')
   })

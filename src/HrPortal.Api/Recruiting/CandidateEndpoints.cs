@@ -20,6 +20,9 @@ public static class CandidateEndpoints
 {
     public const string CompensationAuditType = "CandidateCompensation";
 
+    /// <summary>Audit entity type for CV downloads; the entity id is the CV's id.</summary>
+    public const string CvDownloadAuditType = "CandidateCvDownload";
+
     /// <summary>A row on the board or in the list view (CT-01).</summary>
     public sealed record ApplicationCard(
         Guid Id,
@@ -256,7 +259,7 @@ public static class CandidateEndpoints
 
     /// <summary>Panelists need the CV to interview, so anyone who can see one of the person's applications may download it.</summary>
     private static async Task<IResult> DownloadCvAsync(
-        Guid personId, Guid cvId, HrPortalDbContext db, IAccessContext accessContext, IFileStore files, CancellationToken ct)
+        Guid personId, Guid cvId, HrPortalDbContext db, IAccessContext accessContext, IFileStore files, IAuditLog audit, CancellationToken ct)
     {
         var access = await accessContext.GetAsync(ct);
         var (_, denied) = await PermissionsAsync(db, access, personId, ct);
@@ -266,9 +269,14 @@ public static class CandidateEndpoints
         }
 
         var cv = await db.CandidateCvs.AsNoTracking().SingleOrDefaultAsync(c => c.Id == cvId && c.PersonId == personId, ct);
-        return cv is null
-            ? Results.NotFound()
-            : Results.File(await files.OpenReadAsync(CandidateCv.Container, cv.StorageKey, ct), cv.ContentType, cv.FileName);
+        if (cv is null)
+        {
+            return Results.NotFound();
+        }
+
+        // Every CV download is recorded, whoever downloads it.
+        await audit.RecordViewAsync(CvDownloadAuditType, cv.Id.ToString(), ct);
+        return Results.File(await files.OpenReadAsync(CandidateCv.Container, cv.StorageKey, ct), cv.ContentType, cv.FileName);
     }
 
     internal static IResult DuplicateConflict(List<DuplicateMatch> duplicates) =>

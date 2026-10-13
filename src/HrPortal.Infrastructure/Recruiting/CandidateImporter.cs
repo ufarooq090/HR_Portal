@@ -35,7 +35,7 @@ public sealed class CandidateImporter(HrPortalDbContext db, TimeProvider clock)
         new("CurrentCtc", false, "Annual, number only."),
         new("ExpectedCtc", false, "Annual, number only."),
         new("CtcCurrency", false, "PKR or USD. Empty: the country's currency."),
-        new("Status", false, "Shortlisted, Not shortlisted, No-show, Offer declined, Resigned, Terminated or Hired. Blacklisting is done in the portal."),
+        new("Status", false, "Shortlisted, Not shortlisted, No-show, Offer declined, Resigned, Terminated, Absconded or Hired. Blacklisting is done in the portal."),
         new("LastContacted", false, "Date as YYYY-MM-DD, or an Excel date cell."),
         new("Notes", false, "Becomes a note on the candidate."),
     ];
@@ -237,7 +237,7 @@ public sealed class CandidateImporter(HrPortalDbContext db, TimeProvider clock)
             return status;
         }
 
-        error("Status", "Use Shortlisted, Not shortlisted, No-show, Offer declined, Resigned, Terminated or Hired. Blacklisting is done in the portal by an HR Admin.");
+        error("Status", "Use Shortlisted, Not shortlisted, No-show, Offer declined, Resigned, Terminated, Absconded or Hired. Blacklisting is done in the portal by an HR Admin.");
         return null;
     }
 

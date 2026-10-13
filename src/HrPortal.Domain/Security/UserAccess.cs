@@ -72,6 +72,11 @@ public sealed class UserAccess
             scopes.Remove(DataScope.Countries);
         }
 
+        if (HomeCountryCode is null)
+        {
+            scopes.Remove(DataScope.HomeCountry);
+        }
+
         return scopes;
     }
 
