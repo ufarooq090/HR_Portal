@@ -3,8 +3,9 @@ using HrPortal.Domain.Common;
 namespace HrPortal.Domain.Organisation;
 
 /// <summary>
-/// Per-country configuration. Country-specific rules (probation, notice period, and later leave,
-/// holidays, templates, checklists) are read from here and never hard-coded.
+/// Per-country configuration. Country-specific rules (probation, notice period, time zone, and later
+/// leave, holidays, templates, checklists) are read from here and never hard-coded. Settings cascade
+/// to office locations and grades, which may override some of them.
 /// </summary>
 public sealed class CountrySettings
 {
@@ -15,11 +16,11 @@ public sealed class CountrySettings
     {
     }
 
-    public CountrySettings(string countryCode, string name, string currencyCode)
+    public CountrySettings(string countryCode, string name, string currencyCode, string defaultTimeZone)
     {
-        CountryCode = countryCode;
-        Name = name;
-        CurrencyCode = currencyCode;
+        CountryCode = Guard.CountryCode(nameof(countryCode), countryCode);
+        CurrencyCode = Guard.CurrencyCode(nameof(currencyCode), currencyCode);
+        UpdateDetails(name, defaultTimeZone);
     }
 
     /// <summary>ISO 3166-1 alpha-2 code, e.g. PK, US.</summary>
@@ -27,26 +28,25 @@ public sealed class CountrySettings
 
     public string Name { get; private set; } = null!;
 
-    /// <summary>ISO 4217 default currency, e.g. PKR, USD.</summary>
+    /// <summary>ISO 4217 default currency, e.g. PKR, USD. Fixed once created: compensation is stored in it.</summary>
     public string CurrencyCode { get; private set; } = null!;
+
+    /// <summary>IANA time zone for offices in this country that do not set their own.</summary>
+    public string DefaultTimeZone { get; private set; } = null!;
 
     public int ProbationMonths { get; private set; } = DefaultProbationMonths;
 
     public int NoticePeriodDays { get; private set; } = DefaultNoticePeriodDays;
 
+    public void UpdateDetails(string name, string defaultTimeZone)
+    {
+        Name = Guard.RequiredText(nameof(name), name, 100);
+        DefaultTimeZone = Guard.TimeZone(nameof(defaultTimeZone), defaultTimeZone);
+    }
+
     public void UpdateEmploymentDefaults(int probationMonths, int noticePeriodDays)
     {
-        if (probationMonths is < 0 or > 24)
-        {
-            throw new DomainValidationException(nameof(probationMonths), "Probation must be between 0 and 24 months.");
-        }
-
-        if (noticePeriodDays is < 0 or > 365)
-        {
-            throw new DomainValidationException(nameof(noticePeriodDays), "Notice period must be between 0 and 365 days.");
-        }
-
-        ProbationMonths = probationMonths;
-        NoticePeriodDays = noticePeriodDays;
+        ProbationMonths = EmploymentTerms.ValidProbation(nameof(probationMonths), probationMonths);
+        NoticePeriodDays = EmploymentTerms.ValidNotice(nameof(noticePeriodDays), noticePeriodDays);
     }
 }

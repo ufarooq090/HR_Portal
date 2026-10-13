@@ -7,7 +7,4 @@ public static class HrClaimTypes
     public const string Name = "name";
     public const string PreferredUsername = "preferred_username";
     public const string Roles = "roles";
-
-    /// <summary>Dev-only for now; in Entra environments the country comes from the employee record.</summary>
-    public const string Country = "hrportal_country";
 }

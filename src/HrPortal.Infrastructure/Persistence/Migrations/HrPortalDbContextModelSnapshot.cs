@@ -75,6 +75,105 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditEntries", (string)null);
                 });
 
+            modelBuilder.Entity("HrPortal.Domain.Employees.Employee", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("GradeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly>("JoiningDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("LegalEntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ManagerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OfficeLocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserObjectId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("WorkEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryCode");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EmployeeNumber")
+                        .IsUnique();
+
+                    b.HasIndex("GradeId");
+
+                    b.HasIndex("LegalEntityId");
+
+                    b.HasIndex("ManagerId");
+
+                    b.HasIndex("OfficeLocationId");
+
+                    b.HasIndex("PersonId");
+
+                    b.HasIndex("UserObjectId")
+                        .IsUnique();
+
+                    b.HasIndex("WorkEmail")
+                        .IsUnique();
+
+                    b.ToTable("Employees", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Employees.Person", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FamilyName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("GivenName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("People", (string)null);
+                });
+
             modelBuilder.Entity("HrPortal.Domain.Organisation.CountrySettings", b =>
                 {
                     b.Property<string>("CountryCode")
@@ -87,6 +186,11 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character(3)")
                         .IsFixedLength();
+
+                    b.Property<string>("DefaultTimeZone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -108,6 +212,7 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         {
                             CountryCode = "PK",
                             CurrencyCode = "PKR",
+                            DefaultTimeZone = "Asia/Karachi",
                             Name = "Pakistan",
                             NoticePeriodDays = 30,
                             ProbationMonths = 3
@@ -116,10 +221,247 @@ namespace HrPortal.Infrastructure.Persistence.Migrations
                         {
                             CountryCode = "US",
                             CurrencyCode = "USD",
+                            DefaultTimeZone = "America/New_York",
                             Name = "United States",
                             NoticePeriodDays = 30,
                             ProbationMonths = 3
                         });
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.Department", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Departments", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.Grade", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .IsFixedLength();
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("NoticePeriodDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ProbationMonths")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryCode", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Grades", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.LegalEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .IsFixedLength();
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryCode", "Name")
+                        .IsUnique();
+
+                    b.ToTable("LegalEntities", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.OfficeLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .IsFixedLength();
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryCode", "Name")
+                        .IsUnique();
+
+                    b.ToTable("OfficeLocations", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Security.HrAccessSettings", b =>
+                {
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CompensationAccess")
+                        .HasColumnType("boolean");
+
+                    b.PrimitiveCollection<string[]>("CountryCodes")
+                        .HasColumnType("text[]");
+
+                    b.HasKey("EmployeeId");
+
+                    b.ToTable("HrAccessSettings", (string)null);
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Employees.Employee", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Organisation.CountrySettings", null)
+                        .WithMany()
+                        .HasForeignKey("CountryCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrPortal.Domain.Organisation.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrPortal.Domain.Organisation.Grade", "Grade")
+                        .WithMany()
+                        .HasForeignKey("GradeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrPortal.Domain.Organisation.LegalEntity", "LegalEntity")
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrPortal.Domain.Employees.Employee", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrPortal.Domain.Organisation.OfficeLocation", "OfficeLocation")
+                        .WithMany()
+                        .HasForeignKey("OfficeLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrPortal.Domain.Employees.Person", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Grade");
+
+                    b.Navigation("LegalEntity");
+
+                    b.Navigation("Manager");
+
+                    b.Navigation("OfficeLocation");
+
+                    b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.Grade", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Organisation.CountrySettings", null)
+                        .WithMany()
+                        .HasForeignKey("CountryCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.LegalEntity", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Organisation.CountrySettings", null)
+                        .WithMany()
+                        .HasForeignKey("CountryCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Organisation.OfficeLocation", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Organisation.CountrySettings", null)
+                        .WithMany()
+                        .HasForeignKey("CountryCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HrPortal.Domain.Security.HrAccessSettings", b =>
+                {
+                    b.HasOne("HrPortal.Domain.Employees.Employee", null)
+                        .WithOne()
+                        .HasForeignKey("HrPortal.Domain.Security.HrAccessSettings", "EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

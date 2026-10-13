@@ -68,6 +68,14 @@ SystemAdmin, HrAdmin, HrExecutive, HiringManager, Interviewer, LineManager, Empl
 A user can hold several. The permission matrix is in `docs/requirements.md` ("Users and permissions").
 Default approver for requisitions and offers is the CEO (configurable approval chain).
 
+The access-by-module table is encoded once in `Domain/Security/PermissionMatrix.cs` (role → module →
+capabilities + data scope); `PermissionMatrixTests` checks it cell by cell against the spec. For a new module:
+protect endpoints with `Policies.Module(HrModule.X, Capability.Y)` and filter data with
+`db.Employees.VisibleTo(db, access, HrModule.X, Capability.Y)` (join your records on the owning employee).
+Team scope uses the `employee_report_ids` SQL function. HR country scope (MC-03) defaults to all countries for
+HR Admins and the home country for HR Executives, overridable per person in `HrAccessSettings`.
+DevAuth environments seed an organisation and an employee record per dev user (`DevDataSeeder`).
+
 ## Integrations
 
 Wrap every external system in an interface so it can be faked locally and in tests:

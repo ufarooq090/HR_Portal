@@ -51,5 +51,19 @@ public class AuthenticationTests(HrPortalApiFactory factory)
         Assert.NotNull(me);
         Assert.Equal("dev-us-linemanager", me.UserId);
         Assert.Equal(["Employee", "LineManager"], me.Roles);
+        Assert.NotNull(me.EmployeeId);
+        Assert.Equal("US", me.CountryCode);
+        Assert.Empty(me.HrCountries.Codes);
+        Assert.False(me.HrCountries.All);
+    }
+
+    [Fact]
+    public async Task MC_03_me_reports_the_HR_country_scope()
+    {
+        var admin = await factory.CreateClientAs("dev-pk-hradmin").GetFromJsonAsync<MeEndpoints.MeResponse>("/api/me");
+        var executive = await factory.CreateClientAs("dev-pk-hrexecutive").GetFromJsonAsync<MeEndpoints.MeResponse>("/api/me");
+
+        Assert.True(admin!.HrCountries.All);
+        Assert.Equal(["PK"], executive!.HrCountries.Codes);
     }
 }

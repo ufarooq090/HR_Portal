@@ -12,6 +12,8 @@ export default defineConfig({
   retries: isCi ? 1 : 0,
   workers: isCi ? 2 : undefined,
   reporter: isCi ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // The Vite dev server compiles pages on first request, which is slow while many browsers run in parallel.
+  expect: { timeout: 10_000 },
   use: {
     baseURL: webUrl,
     trace: 'retain-on-failure',

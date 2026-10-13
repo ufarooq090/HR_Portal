@@ -15,7 +15,37 @@ export function hasAnyRole(user: { roles: readonly string[] } | undefined, ...ro
   return !!user && roles.some((r) => user.roles.includes(r))
 }
 
+type UserLike = { roles: readonly string[] } | undefined
+
 /** Matches the API's ManageCountrySettings policy. */
-export function canManageCountrySettings(user: { roles: readonly string[] } | undefined): boolean {
+export function canManageCountrySettings(user: UserLike): boolean {
   return hasAnyRole(user, Roles.SystemAdmin, Roles.HrAdmin)
+}
+
+/** Matches the API's ManageOrganisation policy (legal entities, offices, departments, grades). */
+export function canManageOrganisation(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin)
+}
+
+/** Matches the API's ManageHrAccess policy. */
+export function canManageHrAccess(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.HrAdmin)
+}
+
+/** Who gets the Settings section in the navigation. Everyone may read organisation data; these roles maintain it. */
+export function showsSettings(user: UserLike): boolean {
+  return hasAnyRole(user, Roles.SystemAdmin, Roles.HrAdmin, Roles.HrExecutive)
+}
+
+/**
+ * Whether an HR Admin with this country scope may configure a country. Mirrors UserAccess.CanConfigureCountry;
+ * System Admins configure country settings everywhere.
+ */
+export function canConfigureCountry(
+  user: (NonNullable<UserLike> & { hrCountries: { all: boolean; codes: string[] } }) | undefined,
+  countryCode: string,
+): boolean {
+  if (!user) return false
+  if (user.roles.includes(Roles.SystemAdmin)) return true
+  return user.roles.includes(Roles.HrAdmin) && (user.hrCountries.all || user.hrCountries.codes.includes(countryCode))
 }

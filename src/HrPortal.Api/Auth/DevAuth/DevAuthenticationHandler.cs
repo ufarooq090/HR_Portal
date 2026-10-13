@@ -36,7 +36,6 @@ public sealed class DevAuthenticationHandler(
             new(HrClaimTypes.ObjectId, user.Id),
             new(HrClaimTypes.Name, user.DisplayName),
             new(HrClaimTypes.PreferredUsername, user.Email),
-            new(HrClaimTypes.Country, user.CountryCode),
         };
         claims.AddRange(user.Roles.Select(r => new Claim(HrClaimTypes.Roles, r)));
 

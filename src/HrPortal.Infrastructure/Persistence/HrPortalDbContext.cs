@@ -1,7 +1,9 @@
 using System.Reflection;
 using HrPortal.Domain.Audit;
 using HrPortal.Domain.Common;
+using HrPortal.Domain.Employees;
 using HrPortal.Domain.Organisation;
+using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +15,27 @@ public sealed class HrPortalDbContext(DbContextOptions<HrPortalDbContext> option
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     public DbSet<CountrySettings> CountrySettings => Set<CountrySettings>();
+
+    public DbSet<LegalEntity> LegalEntities => Set<LegalEntity>();
+
+    public DbSet<OfficeLocation> OfficeLocations => Set<OfficeLocation>();
+
+    public DbSet<Department> Departments => Set<Department>();
+
+    public DbSet<Grade> Grades => Set<Grade>();
+
+    public DbSet<Person> People => Set<Person>();
+
+    public DbSet<Employee> Employees => Set<Employee>();
+
+    public DbSet<HrAccessSettings> HrAccessSettings => Set<HrAccessSettings>();
+
+    /// <summary>
+    /// Ids of everyone who reports to <paramref name="managerId"/>, directly or indirectly. Composable: use it
+    /// inside other queries so team scoping runs in the database (function created by a migration).
+    /// </summary>
+    public IQueryable<Guid> ReportIds(Guid managerId) =>
+        Database.SqlQuery<Guid>($"""SELECT "Value" FROM employee_report_ids({managerId})""");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -14,11 +14,22 @@ import {
   mergeClasses,
   tokens,
 } from '@fluentui/react-components'
-import { GlobeRegular, HomeRegular, SignOutRegular } from '@fluentui/react-icons'
+import {
+  BuildingBankRegular,
+  GlobeRegular,
+  HomeRegular,
+  LocationRegular,
+  OrganizationRegular,
+  PeopleRegular,
+  RibbonRegular,
+  ShieldKeyholeRegular,
+  SignOutRegular,
+} from '@fluentui/react-icons'
 import type { ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useMe } from '../api/queries'
 import { useAuth } from '../auth/AuthContext'
+import { canManageHrAccess, showsSettings } from '../auth/roles'
 
 const useStyles = makeStyles({
   root: {
@@ -126,12 +137,36 @@ export function AppShell() {
         <NavItem to="/" icon={<HomeRegular />}>
           Home
         </NavItem>
-        <Text size={200} weight="semibold" className={styles.navSection}>
-          Settings
-        </Text>
-        <NavItem to="/settings/countries" icon={<GlobeRegular />}>
-          Countries
+        <NavItem to="/people" icon={<PeopleRegular />}>
+          People
         </NavItem>
+        {showsSettings(me) && (
+          <>
+            <Text size={200} weight="semibold" className={styles.navSection}>
+              Settings
+            </Text>
+            <NavItem to="/settings/countries" icon={<GlobeRegular />}>
+              Countries
+            </NavItem>
+            <NavItem to="/settings/legal-entities" icon={<BuildingBankRegular />}>
+              Legal entities
+            </NavItem>
+            <NavItem to="/settings/locations" icon={<LocationRegular />}>
+              Offices
+            </NavItem>
+            <NavItem to="/settings/departments" icon={<OrganizationRegular />}>
+              Departments
+            </NavItem>
+            <NavItem to="/settings/grades" icon={<RibbonRegular />}>
+              Grades
+            </NavItem>
+            {canManageHrAccess(me) && (
+              <NavItem to="/settings/hr-access" icon={<ShieldKeyholeRegular />}>
+                HR data access
+              </NavItem>
+            )}
+          </>
+        )}
       </nav>
 
       <main className={styles.main}>

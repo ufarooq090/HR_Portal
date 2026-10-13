@@ -1,5 +1,6 @@
 using HrPortal.Domain.Audit;
 using HrPortal.Domain.Notifications;
+using HrPortal.Domain.Security;
 using HrPortal.Infrastructure.Audit;
 using HrPortal.Infrastructure.Notifications;
 using HrPortal.Infrastructure.Persistence;
@@ -32,6 +33,7 @@ public static class DependencyInjection
                 .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
         });
         services.AddScoped<IAuditLog, AuditLog>();
+        services.AddScoped<IAccessContext, AccessContext>();
 
         // Microsoft Graph implementations replace these for deployed environments.
         services.AddOptions<SmtpEmailOptions>().Bind(configuration.GetSection("Email:Smtp"));
