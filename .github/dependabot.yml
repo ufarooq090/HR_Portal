@@ -1,0 +1,51 @@
+# Weekly dependency checks. Dependabot opens a PR per update; CI must pass before merging.
+# Security updates (PRs for packages with a known advisory) also need "Dependabot security updates" switched on in
+# the repository's Settings → Code security; they are raised as soon as an advisory is published, not weekly.
+version: 2
+updates:
+  # .NET: every project under src/ and tests/, plus the local tool manifest (dotnet-tools.json) at the root.
+  - package-ecosystem: nuget
+    directories:
+      - "/"
+      - "/src/*"
+      - "/tests/*"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      nuget-minor-and-patch:
+        update-types: [minor, patch]
+
+  # React SPA. Tiptap is pinned to an exact version on purpose (CLAUDE.md): its packages move together in one PR.
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      tiptap:
+        patterns: ["@tiptap/*"]
+      web-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Playwright E2E tests.
+  - package-ecosystem: npm
+    directory: "/e2e"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      e2e-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Actions used in .github/workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
