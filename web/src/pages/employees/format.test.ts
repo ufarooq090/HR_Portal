@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { employeesUrl } from '../../api/employees'
-import { formatBytes, formatDate, formatMoney, label, statusColor, todayIso } from './format'
+import { formatBytes, formatDate, formatDateTime, formatDay, formatMoney, label, parseDate, statusColor, todayIso } from './format'
 
 describe('employee formatting', () => {
   it('turns enum values into readable labels', () => {
@@ -12,12 +12,34 @@ describe('employee formatting', () => {
 
   it('formats calendar dates without shifting the day', () => {
     expect(formatDate('2024-01-15')).toBe('15 Jan 2024')
+    expect(formatDate('2026-09-30')).toBe('30 Sep 2026')
     expect(formatDate(null)).toBe('—')
   })
 
-  it('MC-02: always shows the currency with money', () => {
+  it("formats timestamps in the viewer's time zone with an unambiguous date", () => {
+    const local = new Date(2026, 9, 14, 9, 5)
+    expect(formatDay(local.toISOString())).toBe('14 Oct 2026')
+    expect(formatDateTime(local.toISOString())).toBe('14 Oct 2026, 09:05')
+    expect(formatDateTime(null)).toBe('—')
+  })
+
+  it('reads typed dates with a month name or in ISO form, and refuses ambiguous ones', () => {
+    expect(parseDate('14 Oct 2026')).toBe('2026-10-14')
+    expect(parseDate(' 3 september 2025 ')).toBe('2025-09-03')
+    expect(parseDate('3 Sept 2025')).toBe('2025-09-03')
+    expect(parseDate('14-Oct-2026')).toBe('2026-10-14')
+    expect(parseDate('2026-10-14')).toBe('2026-10-14')
+    expect(parseDate('10/14/2026')).toBeNull()
+    expect(parseDate('31 Feb 2026')).toBeNull()
+    expect(parseDate('14 Oc 2026')).toBeNull()
+    expect(parseDate('')).toBeNull()
+  })
+
+  it('MC-02: always shows the currency with money, in whole units for both currencies', () => {
     expect(formatMoney(2400000, 'PKR')).toBe('PKR 2,400,000')
-    expect(formatMoney(85000.5, 'USD')).toBe('USD 85,000.50')
+    expect(formatMoney(85000, 'USD')).toBe('USD 85,000')
+    expect(formatMoney(85000.4, 'USD')).toBe('USD 85,000')
+    expect(formatMoney(3500000.75, 'PKR')).toBe('PKR 3,500,001')
   })
 
   it('formats file sizes', () => {

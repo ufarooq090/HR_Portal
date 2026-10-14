@@ -6,14 +6,15 @@ import { useCreateEmployee } from '../../api/employees'
 import { type EmploymentType, employmentTypes, type PersonalDetails } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
 import { ManagerField, PersonalSection, type Placement, PlacementSection } from './EmployeeFormSections'
-import { SelectField, TextField } from './fields'
+import { DateField, SelectField, TextField } from './fields'
 import { label, todayIso } from './format'
 import { cleanPersonal, emptyPersonal } from './personal'
+import { fieldGrid } from '../../app/layout'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '1100px' },
   card: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: tokens.spacingHorizontalL },
+  grid: fieldGrid,
   actions: { display: 'flex', gap: tokens.spacingHorizontalS },
 })
 
@@ -85,7 +86,7 @@ export function NewEmployeePage() {
               onChange={(v) => setEmploymentType(v as EmploymentType)}
               options={employmentTypes.map((t) => ({ value: t, label: label(t) }))}
             />
-            <TextField label="Joining date" type="date" required value={joiningDate} onChange={setJoiningDate} error={error('joiningDate')} />
+            <DateField label="Joining date" required value={joiningDate} onChange={setJoiningDate} error={error('joiningDate')} />
             <ManagerField value={managerId} onChange={setManagerId} error={error('managerId')} />
           </div>
         </Card>

@@ -30,9 +30,15 @@ public sealed class ApprovalChain
 
     public void Replace(IReadOnlyList<(string Label, Employee Approver)> steps)
     {
-        if (steps.Count is 0 or > MaxSteps)
+        // A chain always keeps at least one step: without one, requisitions in the country could not be approved.
+        if (steps.Count == 0)
         {
-            throw new DomainValidationException("steps", $"Add between 1 and {MaxSteps} approval steps.");
+            throw new DomainValidationException("steps", "An approval chain needs at least one step.");
+        }
+
+        if (steps.Count > MaxSteps)
+        {
+            throw new DomainValidationException("steps", $"An approval chain can have at most {MaxSteps} steps.");
         }
 
         if (steps.Select(s => s.Approver.Id).Distinct().Count() != steps.Count)

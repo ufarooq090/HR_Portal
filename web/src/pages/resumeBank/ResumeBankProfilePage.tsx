@@ -54,7 +54,7 @@ import {
 import { type ApplicationCard, type MoneyAmount, type ResumeBankDetail, resumeBankStatuses, type ResumeBankStatus, type TimelineKind } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
 import { SelectField, TextField } from '../employees/fields'
-import { formatBytes, formatDate, formatMoney } from '../employees/format'
+import { formatBytes, formatDateTime, formatDay, formatMoney } from '../employees/format'
 import { StageBadge } from '../recruiting/PipelinePage'
 import { StatusBadge } from './StatusBadge'
 
@@ -215,7 +215,7 @@ export function ResumeBankProfilePage() {
             ['Experience', c.experienceYears !== null ? `${c.experienceYears} years` : null],
             ['Notice period', c.noticePeriodDays !== null ? `${c.noticePeriodDays} days` : null],
             ...(p.canSeeCompensation ? ([['Current CTC', money(c.currentCtc)], ['Expected CTC', money(c.expectedCtc)]] as [string, ReactNode][]) : []),
-            ['Last contacted', c.lastContactedAtUtc ? formatDate(c.lastContactedAtUtc.slice(0, 10)) : null],
+            ['Last contacted', c.lastContactedAtUtc ? formatDay(c.lastContactedAtUtc) : null],
           ]}
         />
         {!p.canSeeContact && <Caption1>Contact details and salary are visible to HR, and salary to the hiring manager of the candidate's requisitions.</Caption1>}
@@ -328,7 +328,7 @@ function CvCard({ candidate: c }: { candidate: ResumeBankDetail }) {
             {cv.fileName}
           </Button>
           <Caption1>
-            {formatBytes(cv.sizeBytes)} · {cv.uploadedBy} · {new Date(cv.uploadedAtUtc).toLocaleDateString()}
+            {formatBytes(cv.sizeBytes)} · {cv.uploadedBy} · {formatDay(cv.uploadedAtUtc)}
           </Caption1>
         </div>
       ))}
@@ -394,7 +394,7 @@ function ApplicationsCard({ candidate: c }: { candidate: ResumeBankDetail }) {
                   <TableCell>
                     <StageBadge stage={a.stage} round={a.interviewRound} />
                   </TableCell>
-                  <TableCell>{formatDate(a.appliedAtUtc.slice(0, 10))}</TableCell>
+                  <TableCell>{formatDay(a.appliedAtUtc)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -446,7 +446,7 @@ function TimelineCard({ candidate: c }: { candidate: ResumeBankDetail }) {
                 {kindLabels[t.kind]}
               </Badge>
               <br />
-              <Caption1>{new Date(t.atUtc).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Caption1>
+              <Caption1>{formatDateTime(t.atUtc)}</Caption1>
             </div>
             <div>
               <Text weight="semibold">{t.title}</Text>

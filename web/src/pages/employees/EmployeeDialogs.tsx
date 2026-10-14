@@ -15,7 +15,7 @@ import { useChangeJob, useChangeManager, useChangeStatus, useUpdatePersonal, use
 import type { EmployeeDetail, EmploymentStatus, JobChangeKind, PersonalDetails, ScheduledChange } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
 import { ManagerField, PersonalSection, type Placement, PlacementSection } from './EmployeeFormSections'
-import { SelectField, TextField } from './fields'
+import { DateField, SelectField, TextField } from './fields'
 import { label, todayIso } from './format'
 import { cleanPersonal, emptyPersonal } from './personal'
 
@@ -127,9 +127,8 @@ export function JobChangeDialog({ employee, scheduled, onClose }: { employee: Em
           error={error('kind')}
         />
       )}
-      <TextField
+      <DateField
         label="Effective date"
-        type="date"
         required
         value={effectiveDate}
         onChange={setEffectiveDate}
@@ -177,9 +176,8 @@ export function ManagerDialog({ employee, scheduled, onClose }: { employee: Empl
       onSubmit={submit}
     >
       <ManagerField value={managerId} onChange={setManagerId} excludeId={employee.id} error={error('managerId')} />
-      <TextField
+      <DateField
         label="Effective date"
-        type="date"
         required
         value={effectiveDate}
         onChange={setEffectiveDate}
@@ -223,11 +221,10 @@ export function StatusDialog({ employee, onClose }: { employee: EmployeeDetail; 
         options={options.map((s) => ({ value: s, label: label(s) }))}
         error={error('status')}
       />
-      <TextField label="Effective date" type="date" required value={effectiveDate} onChange={setEffectiveDate} error={error('effectiveDate')} />
+      <DateField label="Effective date" required value={effectiveDate} onChange={setEffectiveDate} error={error('effectiveDate')} />
       {status && status !== 'Confirmed' && (
-        <TextField
+        <DateField
           label="Last working day"
-          type="date"
           value={lastWorkingDate}
           onChange={setLastWorkingDate}
           hint={status === 'OnNotice' ? 'Leave empty to use the notice period.' : 'Leave empty to use the effective date.'}

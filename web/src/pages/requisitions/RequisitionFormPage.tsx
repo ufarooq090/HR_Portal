@@ -8,13 +8,14 @@ import { useCreateRequisition, useRequisition, useUpdateRequisition } from '../.
 import type { Department, OfficeLocation, RequisitionDetail, RequisitionReason, RequisitionRequest } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
 import { canCreateEmployees } from '../../auth/roles'
-import { SelectField, TextField } from '../employees/fields'
+import { DateField, SelectField, TextField } from '../employees/fields'
 import { todayIso } from '../employees/format'
+import { fieldGrid } from '../../app/layout'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '1000px' },
   card: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: tokens.spacingHorizontalL },
+  grid: fieldGrid,
   actions: { display: 'flex', gap: tokens.spacingHorizontalS },
 })
 
@@ -153,7 +154,7 @@ function RequisitionForm({ existing }: { existing: RequisitionDetail | undefined
               error={error('budgetMin') ?? error('currencyCode')}
             />
             <TextField label={`Budget to${currency ? ` (${currency})` : ''}`} required value={form.budgetMax} onChange={(v) => set('budgetMax', v)} error={error('budgetMax')} />
-            <TextField label="Target date" required type="date" value={form.targetDate} onChange={(v) => set('targetDate', v)} error={error('targetDate')} />
+            <DateField label="Target date" required value={form.targetDate} onChange={(v) => set('targetDate', v)} error={error('targetDate')} />
             <SelectField
               label="Reason"
               required

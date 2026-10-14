@@ -63,11 +63,13 @@ import { RichTextEditor } from '../../app/RichTextEditor'
 import { canManageTemplates } from '../../auth/roles'
 import { SelectField } from '../employees/fields'
 import { EmailBody } from './EmailComponents'
+import { fieldGrid } from '../../app/layout'
+import { formatDateTime } from '../employees/format'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '1000px' },
   card: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: tokens.spacingHorizontalM, alignItems: 'end' },
+  grid: fieldGrid,
   row: { display: 'flex', gap: tokens.spacingHorizontalM, flexWrap: 'wrap', alignItems: 'end' },
   header: { display: 'flex', gap: tokens.spacingHorizontalM, alignItems: 'center', flexWrap: 'wrap' },
   tableWrap: { overflowX: 'auto' },
@@ -240,7 +242,7 @@ function TemplateForm({ template }: { template: TemplateDetail | null }) {
                   <TableRow key={v.version}>
                     <TableCell>{v.version}</TableCell>
                     <TableCell>{v.changedByName}</TableCell>
-                    <TableCell>{new Date(v.atUtc).toLocaleString()}</TableCell>
+                    <TableCell>{formatDateTime(v.atUtc)}</TableCell>
                     <TableCell>
                       <Button size="small" onClick={() => setViewing(v.version)}>
                         View version {v.version}
@@ -272,7 +274,7 @@ function VersionDialog({ templateId, version, onClose }: { templateId: string; v
             {data && (
               <>
                 <Caption1>
-                  {data.name} · {data.category} · {data.isActive ? 'Active' : 'Inactive'} · saved by {data.changedByName} on {new Date(data.atUtc).toLocaleString()}
+                  {data.name} · {data.category} · {data.isActive ? 'Active' : 'Inactive'} · saved by {data.changedByName} on {formatDateTime(data.atUtc)}
                 </Caption1>
                 <Body1>
                   <strong>Subject:</strong> {data.subject}

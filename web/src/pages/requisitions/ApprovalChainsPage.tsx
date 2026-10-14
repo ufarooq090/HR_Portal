@@ -13,7 +13,8 @@ import { SelectField, TextField } from '../employees/fields'
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '900px' },
   card: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
-  step: { display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) minmax(200px, 2fr) auto', gap: tokens.spacingHorizontalM, alignItems: 'end' },
+  // No step field has help text, so the controls and the buttons line up along the bottom.
+  step: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr) auto', gap: tokens.spacingHorizontalM, alignItems: 'end' },
   actions: { display: 'flex', gap: tokens.spacingHorizontalXS },
 })
 
@@ -68,13 +69,20 @@ function ChainEditor({ chain }: { chain: ApprovalChain }) {
       {chain.steps.some((s) => !s.approverActive) && <QueryError error={new ApiError(400, { title: 'An approver has left. Choose someone else.' })} />}
       {steps.map((s, i) => (
         <div key={i} className={styles.step}>
-          <TextField label={`Step ${i + 1}`} value={s.label} onChange={(v) => update(i, { label: v })} hint={i === 0 ? 'e.g. CEO' : undefined} />
+          <TextField label={`Step ${i + 1}`} value={s.label} onChange={(v) => update(i, { label: v })} placeholder={i === 0 ? 'e.g. CEO' : undefined} />
           <SelectField label="Approver" value={s.approverEmployeeId} onChange={(v) => update(i, { approverEmployeeId: v })} options={options} />
           {editable && (
             <div className={styles.actions}>
               <Button appearance="subtle" icon={<ArrowUpRegular />} aria-label={`Move step ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)} />
               <Button appearance="subtle" icon={<ArrowDownRegular />} aria-label={`Move step ${i + 1} down`} disabled={i === steps.length - 1} onClick={() => move(i, 1)} />
-              <Button appearance="subtle" icon={<DeleteRegular />} aria-label={`Remove step ${i + 1}`} onClick={() => setSteps(steps.filter((_, j) => j !== i))} />
+              <Button
+                appearance="subtle"
+                icon={<DeleteRegular />}
+                aria-label={`Remove step ${i + 1}`}
+                title={steps.length === 1 ? 'A chain needs at least one step.' : undefined}
+                disabled={steps.length === 1}
+                onClick={() => setSteps(steps.filter((_, j) => j !== i))}
+              />
             </div>
           )}
         </div>
@@ -86,7 +94,7 @@ function ChainEditor({ chain }: { chain: ApprovalChain }) {
           </Button>
           <Button
             appearance="primary"
-            disabled={save.isPending}
+            disabled={save.isPending || steps.length === 0}
             onClick={() => save.mutate({ countryCode: chain.countryCode, steps }, { onSuccess: () => setSaved(true) })}
           >
             Save {chain.countryName} chain

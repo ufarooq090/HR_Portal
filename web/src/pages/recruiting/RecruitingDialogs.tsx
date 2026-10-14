@@ -24,10 +24,11 @@ import { QueryError } from '../../app/QueryError'
 import { SelectField, TextField } from '../employees/fields'
 import { label } from '../employees/format'
 import { type StageTarget, stageLabel } from './pipeline'
+import { fieldGrid } from '../../app/layout'
 
 const useStyles = makeStyles({
   form: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: tokens.spacingHorizontalM },
+  grid: fieldGrid,
   wide: { maxWidth: '760px', width: '100%' },
   match: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: tokens.spacingHorizontalM, padding: tokens.spacingHorizontalM },
 })

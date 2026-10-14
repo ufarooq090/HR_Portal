@@ -131,7 +131,8 @@ test('CT-04/06/07: interview panel gives feedback; others see it only after subm
   await page.goto(`/applications/${application.id}`)
   await page.getByRole('button', { name: 'Add interview' }).click()
   const dialog = page.getByRole('dialog')
-  await dialog.getByLabel('Date and time').fill('2030-01-15T10:00')
+  await dialog.getByRole('textbox', { name: 'Date' }).fill('15 Jan 2030')
+  await dialog.getByLabel('Time').fill('10:00')
   await dialog.getByRole('combobox', { name: 'Panel' }).click()
   // A multi-select dropdown exposes its options as checkable menu items.
   await page.getByRole('menuitemcheckbox', { name: /Dev Interviewer \(PK\)/ }).click()

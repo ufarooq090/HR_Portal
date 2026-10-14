@@ -24,18 +24,15 @@ import { QueryError } from '../app/QueryError'
 import { canCreateEmployees } from '../auth/roles'
 import { SelectField } from './employees/fields'
 import { label, statusColor } from './employees/format'
+import { fieldGrid, tableWrap } from '../app/layout'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '1280px' },
   heading: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacingHorizontalM, flexWrap: 'wrap' },
   actions: { display: 'flex', gap: tokens.spacingHorizontalS, flexWrap: 'wrap' },
-  filters: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: tokens.spacingHorizontalM,
-    alignItems: 'end',
-  },
-  tableWrap: { overflowX: 'auto' },
+  filters: fieldGrid,
+  search: { gridColumn: '1 / -1', maxWidth: '640px' },
+  tableWrap,
 })
 
 const currentStatuses: EmploymentStatus[] = ['Probation', 'Confirmed', 'OnNotice']
@@ -100,6 +97,7 @@ export function PeoplePage() {
 
       <div className={styles.filters}>
         <SearchBox
+          className={styles.search}
           placeholder="Name, employee ID, email or title"
           aria-label="Search people"
           value={input}

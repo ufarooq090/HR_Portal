@@ -48,7 +48,7 @@ import {
 import { QueryError } from '../../app/QueryError'
 import { RichTextEditor } from '../../app/RichTextEditor'
 import { SelectField } from '../employees/fields'
-import { formatBytes } from '../employees/format'
+import { formatBytes, formatDateTime } from '../employees/format'
 
 const useStyles = makeStyles({
   wide: { maxWidth: '900px', width: '100%' },
@@ -448,7 +448,7 @@ export function EmailHistoryCard({ person }: { person: { personId: string } | { 
             <TableBody>
               {data.map((e) => (
                 <TableRow key={e.id}>
-                  <TableCell>{new Date(e.sentAtUtc).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
+                  <TableCell>{formatDateTime(e.sentAtUtc)}</TableCell>
                   <TableCell>
                     <Button appearance="transparent" className={styles.subject} onClick={() => setOpen(e.id)}>
                       {e.subject}
@@ -475,7 +475,7 @@ export function EmailHistoryCard({ person }: { person: { personId: string } | { 
               <DialogTitle>{shown.subject}</DialogTitle>
               <DialogContent className={styles.form}>
                 <Caption1 className={styles.muted}>
-                  {new Date(shown.sentAtUtc).toLocaleString()} · from {shown.fromAddress} to {shown.to}
+                  {formatDateTime(shown.sentAtUtc)} · from {shown.fromAddress} to {shown.to}
                   {shown.cc.length > 0 ? `, cc ${shown.cc.join(', ')}` : ''} · by {shown.sentByName}
                 </Caption1>
                 {shown.error && (

@@ -25,7 +25,7 @@ import { useAddCompensation, useCompensation } from '../../api/employees'
 import { useCountries } from '../../api/queries'
 import { type CompensationReason, compensationReasons, type EmployeeDetail } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
-import { SelectField, TextField } from './fields'
+import { DateField, SelectField, TextField } from './fields'
 import { formatDate, formatMoney, label, todayIso } from './format'
 
 const useStyles = makeStyles({
@@ -143,7 +143,7 @@ function AddCompensationDialog({ employee, hasRecords, onClose }: { employee: Em
                 hint={`Recorded in ${currency}, the currency of ${employee.countryCode}.`}
                 error={apiError?.fieldError('annualCtc') ?? apiError?.fieldError('currencyCode')}
               />
-              <TextField label="Effective date" type="date" required value={effectiveDate} onChange={setEffectiveDate} error={apiError?.fieldError('effectiveDate')} />
+              <DateField label="Effective date" required value={effectiveDate} onChange={setEffectiveDate} error={apiError?.fieldError('effectiveDate')} />
               <SelectField
                 label="Reason"
                 required

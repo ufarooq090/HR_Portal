@@ -40,7 +40,7 @@ import { QueryError } from '../../app/QueryError'
 import { canUseCandidates, isHr } from '../../auth/roles'
 import { SendEmailDialog } from '../templates/EmailComponents'
 import { TextField } from '../employees/fields'
-import { formatDate, label } from '../employees/format'
+import { formatDate, formatDateTime, formatDay, label } from '../employees/format'
 import { budgetRange, decisionColor, requisitionStatusColor, statusActionLabel } from './requisitionFormat'
 
 const useStyles = makeStyles({
@@ -145,7 +145,7 @@ export function RequisitionDetailPage() {
             ['Requested by', r.requesterName],
             ['Hiring manager', r.hiringManagerName],
             ['Interview rounds', String(r.interviewRounds)],
-            ['Raised', new Date(r.createdAtUtc).toLocaleDateString()],
+            ['Raised', formatDay(r.createdAtUtc)],
           ] as const
         ).map(([term, value]) => (
           <div key={term} className={styles.fact}>
@@ -190,7 +190,7 @@ export function RequisitionDetailPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{a.comment ?? ''}</TableCell>
-                  <TableCell>{a.decidedAtUtc ? new Date(a.decidedAtUtc).toLocaleString() : ''}</TableCell>
+                  <TableCell>{a.decidedAtUtc ? formatDateTime(a.decidedAtUtc) : ''}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -211,7 +211,7 @@ export function RequisitionDetailPage() {
           <TableBody>
             {r.history.map((h, i) => (
               <TableRow key={i}>
-                <TableCell>{new Date(h.atUtc).toLocaleString()}</TableCell>
+                <TableCell>{formatDateTime(h.atUtc)}</TableCell>
                 <TableCell>{h.fromStatus ? `${label(h.fromStatus)} → ${label(h.toStatus)}` : label(h.toStatus)}</TableCell>
                 <TableCell>{h.actorName}</TableCell>
                 <TableCell>{h.comment ?? ''}</TableCell>

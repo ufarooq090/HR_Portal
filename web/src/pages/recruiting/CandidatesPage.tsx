@@ -24,13 +24,15 @@ import { QueryError } from '../../app/QueryError'
 import { isHr } from '../../auth/roles'
 import { BulkEmailDialog } from '../templates/EmailComponents'
 import { SelectField } from '../employees/fields'
-import { formatDate, label } from '../employees/format'
+import { formatDateTime, label } from '../employees/format'
 import { daysSince, stageLabel } from './pipeline'
 import { StageBadge } from './PipelinePage'
+import { fieldGrid } from '../../app/layout'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '1280px' },
-  filters: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: tokens.spacingHorizontalM, alignItems: 'end' },
+  filters: fieldGrid,
+  search: { gridColumn: '1 / -1', maxWidth: '640px' },
   tableWrap: { overflowX: 'auto' },
 })
 
@@ -65,7 +67,7 @@ export function CandidatesPage() {
       <Title2 as="h1">Candidates</Title2>
       <Body1>HR sees candidates in their countries, hiring managers their own requisitions, and interviewers the candidates they interview.</Body1>
       <div className={styles.filters}>
-        <SearchBox aria-label="Search candidates" placeholder="Name, email or employer" value={input} onChange={(_, d) => setInput(d.value)} />
+        <SearchBox className={styles.search} aria-label="Search candidates" placeholder="Name, email or employer" value={input} onChange={(_, d) => setInput(d.value)} />
         <SelectField
           label="Stage"
           value={stage}
@@ -173,7 +175,7 @@ export function MyInterviewsPage() {
                   </TableCell>
                   <TableCell>{i.round}</TableCell>
                   <TableCell>
-                    {formatDate(i.startUtc.slice(0, 10))} {new Date(i.startUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatDateTime(i.startUtc)}
                   </TableCell>
                   <TableCell>
                     {label(i.mode)}

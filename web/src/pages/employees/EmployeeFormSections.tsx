@@ -3,15 +3,16 @@ import { AddRegular, DeleteRegular } from '@fluentui/react-icons'
 import { useEmployees } from '../../api/employees'
 import { useCountries, useOrganisationItems } from '../../api/queries'
 import type { Department, Grade, LegalEntity, OfficeLocation, PersonalDetails } from '../../api/types'
-import { SelectField, TextField } from './fields'
+import { DateField, SelectField, TextField } from './fields'
+import { fieldGrid } from '../../app/layout'
 import type { FieldError } from './personal'
 
 const useStyles = makeStyles({
   section: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: tokens.spacingHorizontalL },
+  grid: fieldGrid,
   contact: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr)) auto',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 180px), 1fr)) auto',
     gap: tokens.spacingHorizontalM,
     alignItems: 'end',
   },
@@ -43,7 +44,7 @@ export function PersonalSection({
       <div className={styles.grid}>
         <TextField label="Personal email" type="email" {...text('personalEmail')} />
         <TextField label="Phone" type="tel" {...text('phone')} />
-        <TextField label="Date of birth" type="date" {...text('dateOfBirth')} />
+        <DateField label="Date of birth" {...text('dateOfBirth')} />
         <TextField label="National ID (CNIC / SSN)" hint="Stored encrypted; visible to HR and the employee only." {...text('nationalId')} />
         <TextField label="Address line 1" {...text('addressLine1')} />
         <TextField label="Address line 2" {...text('addressLine2')} />

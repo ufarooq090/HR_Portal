@@ -167,5 +167,12 @@ test('REQ-02: HR sees the approval chains; only HR admins can change them', asyn
 
   await signInAs(page, 'HrAdmin', 'PK')
   await openNav(page, 'Approval chains')
-  await expect(page.getByLabel('Pakistan approval chain').getByRole('button', { name: 'Save Pakistan chain' })).toBeVisible()
+  const chain = page.getByLabel('Pakistan approval chain')
+  await expect(chain.getByRole('button', { name: 'Save Pakistan chain' })).toBeVisible()
+  // A chain always keeps at least one step (the API refuses an empty chain too).
+  await expect(chain.getByRole('button', { name: 'Remove step 1' })).toBeDisabled()
+  await chain.getByRole('button', { name: 'Add step' }).click()
+  await expect(chain.getByRole('button', { name: 'Remove step 1' })).toBeEnabled()
+  await chain.getByRole('button', { name: 'Remove step 2' }).click()
+  await expect(chain.getByRole('button', { name: 'Remove step 1' })).toBeDisabled()
 })

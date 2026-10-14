@@ -28,7 +28,7 @@ test('EMP-01/02/05: HR executive adds an employee, then records a promotion', as
   await choose(page, 'Legal entity', 'HR Portal Dev (Pvt) Ltd (PK)')
   await choose(page, 'Office', 'Lahore Office')
   await choose(page, 'Department', 'Engineering')
-  await page.getByLabel('Joining date').fill('2025-03-03')
+  await page.getByLabel('Joining date').fill('3 Mar 2025')
   await page.getByLabel('National ID (CNIC / SSN)').fill('35202-0000000-1')
   await page.getByRole('button', { name: 'Add emergency contact' }).click()
   await page.getByLabel('Contact 1 name').fill('Bilal Khan')
@@ -141,7 +141,7 @@ test('EMP-03: HR admin records an increment in the local currency', async ({ pag
   await page.getByLabel('Salary band').fill('B2')
   await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
 
-  await expect(page.getByRole('table', { name: 'Compensation history' })).toContainText('USD 92,500.00')
+  await expect(page.getByRole('table', { name: 'Compensation history' })).toContainText('USD 92,500')
 })
 
 test('EMP-06: HR uploads a document and downloads it again', async ({ page, request }) => {

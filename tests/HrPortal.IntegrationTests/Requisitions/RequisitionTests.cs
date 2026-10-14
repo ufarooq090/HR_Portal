@@ -393,6 +393,22 @@ public class RequisitionTests(HrPortalApiFactory factory)
     }
 
     [Fact]
+    public async Task REQ_02_the_api_refuses_to_remove_the_last_step_of_a_chain()
+    {
+        var admin = factory.CreateClientAs("dev-us-hradmin");
+
+        var empty = await admin.PutAsJsonAsync("/api/approval-chains/PK", new UpdateApprovalChainRequest([]));
+        var missing = await admin.PutAsJsonAsync("/api/approval-chains/PK", new { steps = (object?)null });
+
+        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
+        var errors = (await empty.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").GetProperty("steps");
+        Assert.Equal("An approval chain needs at least one step.", errors[0].GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        var chains = await admin.GetFromJsonAsync<List<ApprovalChainDto>>("/api/approval-chains");
+        Assert.Equal(("CEO", "Dev CEO"), chains!.Single(c => c.CountryCode == "PK").Steps.Select(s => (s.Label, s.ApproverName)).Single());
+    }
+
+    [Fact]
     public async Task Me_reports_who_is_an_approver()
     {
         var ceo = await factory.CreateClientAs("dev-ceo").GetFromJsonAsync<Api.Auth.MeEndpoints.MeResponse>("/api/me");

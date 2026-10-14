@@ -45,25 +45,31 @@ const useStyles = makeStyles({
   root: {
     display: 'grid',
     gridTemplateRows: '48px 1fr',
-    gridTemplateColumns: '220px 1fr',
+    // minmax(0, …): wide content (tables, long names) scrolls or truncates inside the main column instead of
+    // stretching the page past the viewport.
+    gridTemplateColumns: '220px minmax(0, 1fr)',
     minHeight: '100vh',
-    '@media (max-width: 720px)': { gridTemplateColumns: '1fr', gridTemplateRows: '48px auto 1fr' },
+    '@media (max-width: 720px)': { gridTemplateColumns: 'minmax(0, 1fr)', gridTemplateRows: '48px auto 1fr' },
   },
   header: {
     gridColumn: '1 / -1',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: tokens.spacingHorizontalM,
+    minWidth: 0,
     padding: `0 ${tokens.spacingHorizontalL}`,
     backgroundColor: tokens.colorBrandBackground,
     color: tokens.colorNeutralForegroundOnBrand,
   },
-  userButton: { color: tokens.colorNeutralForegroundOnBrand },
-  headerActions: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS },
+  userButton: { color: tokens.colorNeutralForegroundOnBrand, maxWidth: '280px', minWidth: 0 },
+  userName: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  headerActions: { display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, minWidth: 0 },
   nav: {
     display: 'flex',
     flexDirection: 'column',
     gap: tokens.spacingVerticalXXS,
+    minWidth: 0,
     padding: tokens.spacingVerticalM,
     backgroundColor: tokens.colorNeutralBackground2,
     borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -73,19 +79,26 @@ const useStyles = makeStyles({
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalS} ${tokens.spacingVerticalXXS}`,
     color: tokens.colorNeutralForeground3,
   },
+  // Every item has the same box; only colour and weight change, so the active item never shifts its text.
   link: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalS}`,
     borderRadius: tokens.borderRadiusMedium,
-    color: tokens.colorNeutralForeground1,
+    borderLeft: `3px solid transparent`,
+    color: tokens.colorNeutralForeground2,
     textDecoration: 'none',
-    ':hover': { backgroundColor: tokens.colorNeutralBackground2Hover },
+    whiteSpace: 'nowrap',
+    ':hover': { backgroundColor: tokens.colorNeutralBackground2Hover, color: tokens.colorNeutralForeground1 },
   },
+  // The one active style, for every item and also on the item's sub-pages (e.g. a person's profile under People).
   active: {
     backgroundColor: tokens.colorNeutralBackground2Selected,
+    borderLeftColor: tokens.colorBrandStroke1,
+    color: tokens.colorNeutralForeground1,
     fontWeight: tokens.fontWeightSemibold,
+    ':hover': { backgroundColor: tokens.colorNeutralBackground2Selected, color: tokens.colorNeutralForeground1 },
   },
   main: { padding: tokens.spacingHorizontalXXL, minWidth: 0 },
 })
@@ -93,7 +106,7 @@ const useStyles = makeStyles({
 function NavItem({ to, icon, children }: { to: string; icon: ReactNode; children: ReactNode }) {
   const styles = useStyles()
   return (
-    <NavLink to={to} end className={({ isActive }) => mergeClasses(styles.link, isActive && styles.active)}>
+    <NavLink to={to} end={to === '/'} className={({ isActive }) => mergeClasses(styles.link, isActive && styles.active)}>
       {icon}
       {children}
     </NavLink>
@@ -126,7 +139,7 @@ export function AppShell() {
               className={styles.userButton}
               icon={<Avatar name={me?.displayName} size={24} color="colorful" />}
             >
-              {me?.displayName ?? '…'}
+              <span className={styles.userName}>{me?.displayName ?? '…'}</span>
             </MenuButton>
           </MenuTrigger>
           <MenuPopover>

@@ -42,6 +42,7 @@ import { SelectField, TextField } from '../employees/fields'
 import { label } from '../employees/format'
 import { activeColumns, type BoardColumn, daysSince, exitColumns, isExit, moveTargets, stageLabel, type StageTarget, targetKey } from './pipeline'
 import { AddCandidateDialog, MoveDialog } from './RecruitingDialogs'
+import { fieldGrid } from '../../app/layout'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL },
@@ -62,8 +63,9 @@ const useStyles = makeStyles({
   columnTitle: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   card: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXXS, padding: tokens.spacingHorizontalS, cursor: 'grab' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: tokens.spacingHorizontalXS },
-  exits: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: tokens.spacingHorizontalM },
-  filters: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: tokens.spacingHorizontalM, alignItems: 'end' },
+  exits: fieldGrid,
+  filters: fieldGrid,
+  search: { gridColumn: '1 / -1', maxWidth: '640px' },
   tableWrap: { overflowX: 'auto' },
   form: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM },
 })
@@ -270,7 +272,7 @@ function ListView({ board, onMove }: { board: Board; onMove: (card: ApplicationC
   return (
     <>
       <div className={styles.filters}>
-        <SearchBox aria-label="Search candidates" placeholder="Name, email or employer" value={search} onChange={(_, d) => setSearch(d.value)} />
+        <SearchBox className={styles.search} aria-label="Search candidates" placeholder="Name, email or employer" value={search} onChange={(_, d) => setSearch(d.value)} />
         <SelectField label="Stage" value={stage} onChange={setStage} clearLabel="All stages" options={stageOptions.map((c) => ({ value: c.key, label: c.label }))} />
         <SelectField label="Source" value={source} onChange={setSource} clearLabel="All sources" options={candidateSources.map((s) => ({ value: s, label: label(s) }))} />
       </div>

@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Dropdown,
   Field,
+  Input,
   Label,
   Menu,
   MenuItem,
@@ -53,8 +54,8 @@ import { useMe } from '../../api/queries'
 import { QueryError } from '../../app/QueryError'
 import { canUseTemplates, isHr } from '../../auth/roles'
 import { EmailHistoryCard, SendEmailDialog } from '../templates/EmailComponents'
-import { SelectField, TextField } from '../employees/fields'
-import { formatBytes, formatMoney, label } from '../employees/format'
+import { DateField, SelectField, TextField } from '../employees/fields'
+import { formatBytes, formatDateTime, formatDay, formatMoney, label } from '../employees/format'
 import { moveTargets, stageLabel, type StageTarget } from './pipeline'
 import { StageBadge } from './PipelinePage'
 import { MoveDialog } from './RecruitingDialogs'
@@ -166,7 +167,7 @@ export function ApplicationPage() {
             ['Current employer', c.currentEmployer],
             ['Notice period', c.noticePeriodDays != null ? `${c.noticePeriodDays} days` : null],
             ['Source', label(a.source)],
-            ['Applied', new Date(a.appliedAtUtc).toLocaleDateString()],
+            ['Applied', formatDay(a.appliedAtUtc)],
             ...(p.canSeeCompensation
               ? ([
                   ['Current CTC', money(c.currentCtc)],
@@ -203,7 +204,7 @@ export function ApplicationPage() {
             <TableBody>
               {a.history.map((h, i) => (
                 <TableRow key={i}>
-                  <TableCell>{new Date(h.atUtc).toLocaleString()}</TableCell>
+                  <TableCell>{formatDateTime(h.atUtc)}</TableCell>
                   <TableCell>
                     {h.fromStage ? `${stageLabel(h.fromStage, h.fromRound)} → ` : ''}
                     {stageLabel(h.toStage, h.toRound)}
@@ -251,7 +252,7 @@ function CvSection({ detail }: { detail: ApplicationDetail }) {
             {cv.fileName}
           </Button>
           <Caption1>
-            {formatBytes(cv.sizeBytes)} · {cv.uploadedBy} · {new Date(cv.uploadedAtUtc).toLocaleDateString()}
+            {formatBytes(cv.sizeBytes)} · {cv.uploadedBy} · {formatDay(cv.uploadedAtUtc)}
           </Caption1>
         </div>
       ))}
@@ -289,7 +290,7 @@ function InterviewCard({ detail, interview: i }: { detail: ApplicationDetail; in
       <div className={styles.actions}>
         <Text weight="semibold">Round {i.round}</Text>
         <Text>
-          {new Date(i.startUtc).toLocaleString()} · {i.durationMinutes} min · {label(i.mode)}
+          {formatDateTime(i.startUtc)} · {i.durationMinutes} min · {label(i.mode)}
           {i.location ? ` · ${i.location}` : ''}
         </Text>
         {cancelled && (
@@ -417,7 +418,8 @@ function ScheduleDialog({ detail, onClose }: { detail: ApplicationDetail; onClos
   const schedule = useScheduleInterview()
   const { data: people } = useEmployees({ status: ['Probation', 'Confirmed', 'OnNotice'] })
   const [round, setRound] = useState(String(detail.interviewRound ?? 1))
-  const [start, setStart] = useState('')
+  const [day, setDay] = useState('')
+  const [time, setTime] = useState('')
   const [duration, setDuration] = useState('60')
   const [mode, setMode] = useState<InterviewMode>('Teams')
   const [location, setLocation] = useState('')
@@ -436,7 +438,7 @@ function ScheduleDialog({ detail, onClose }: { detail: ApplicationDetail; onClos
                 id: detail.id,
                 body: {
                   round: Number(round),
-                  startUtc: new Date(start).toISOString(),
+                  startUtc: new Date(`${day}T${time}`).toISOString(),
                   durationMinutes: Number(duration) || 0,
                   mode,
                   location: location.trim() || null,
@@ -457,8 +459,9 @@ function ScheduleDialog({ detail, onClose }: { detail: ApplicationDetail; onClos
                 onChange={setRound}
                 options={Array.from({ length: detail.requisition.interviewRounds }, (_, i) => ({ value: String(i + 1), label: `Round ${i + 1}` }))}
               />
-              <Field label="Date and time" required hint="In your time zone.">
-                <input type="datetime-local" aria-label="Date and time" value={start} onChange={(e) => setStart(e.target.value)} required />
+              <DateField label="Date" required value={day} onChange={setDay} />
+              <Field label="Time" required hint="24-hour clock, in your time zone.">
+                <Input type="time" value={time} onChange={(_, d) => setTime(d.value)} required />
               </Field>
               <TextField label="Duration (minutes)" type="number" required value={duration} onChange={setDuration} error={apiError?.fieldError('durationMinutes')} />
               <SelectField
@@ -488,7 +491,7 @@ function ScheduleDialog({ detail, onClose }: { detail: ApplicationDetail; onClos
             </DialogContent>
             <DialogActions>
               <Button onClick={onClose}>Cancel</Button>
-              <Button appearance="primary" type="submit" disabled={schedule.isPending || panel.length === 0 || !start}>
+              <Button appearance="primary" type="submit" disabled={schedule.isPending || panel.length === 0 || !day || !time}>
                 Save interview
               </Button>
             </DialogActions>
@@ -526,7 +529,7 @@ function NotesSection({ detail }: { detail: ApplicationDetail }) {
       {detail.notes.map((n) => (
         <div key={n.id} aria-label={`Note by ${n.authorName}`}>
           <Caption1>
-            {n.authorName} · {new Date(n.createdAtUtc).toLocaleString()}
+            {n.authorName} · {formatDateTime(n.createdAtUtc)}
           </Caption1>
           <Body1 className={styles.pre}>{n.body}</Body1>
         </div>

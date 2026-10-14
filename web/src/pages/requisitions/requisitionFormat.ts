@@ -38,6 +38,6 @@ export function statusActionLabel(status: RequisitionStatus): string {
 
 /** "PKR 2,000,000 – 3,000,000": one currency, never converted (MC-02). */
 export function budgetRange(min: number, max: number, currency: string): string {
-  const number = new Intl.NumberFormat('en', { maximumFractionDigits: 2 })
+  const number = new Intl.NumberFormat('en', { maximumFractionDigits: 0 })
   return `${currency} ${number.format(min)} – ${number.format(max)}`
 }

@@ -21,11 +21,13 @@ import { recordTypeLabels, templateCategories, templateRecordTypes, useTemplates
 import { QueryError } from '../../app/QueryError'
 import { canManageTemplates } from '../../auth/roles'
 import { SelectField } from '../employees/fields'
+import { fieldGrid } from '../../app/layout'
+import { formatDay } from '../employees/format'
 
 const useStyles = makeStyles({
   page: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '1200px' },
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacingHorizontalM, flexWrap: 'wrap' },
-  filters: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: tokens.spacingHorizontalM },
+  filters: fieldGrid,
   tableWrap: { overflowX: 'auto' },
 })
 
@@ -97,7 +99,7 @@ export function TemplatesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{t.version}</TableCell>
-                  <TableCell>{new Date(t.updatedAtUtc).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDay(t.updatedAtUtc)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

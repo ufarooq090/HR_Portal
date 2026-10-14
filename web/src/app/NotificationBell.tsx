@@ -15,6 +15,7 @@ import { AlertRegular } from '@fluentui/react-icons'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMarkNotificationRead, useNotifications } from '../api/requisitions'
+import { formatDateTime } from '../pages/employees/format'
 
 const useStyles = makeStyles({
   trigger: { position: 'relative', color: tokens.colorNeutralForegroundOnBrand },
@@ -86,7 +87,7 @@ export function NotificationBell() {
               <strong>{n.title}</strong>
             </Body1>
             <Caption1 className={styles.body}>{n.body}</Caption1>
-            <Caption1>{new Date(n.createdAtUtc).toLocaleString()}</Caption1>
+            <Caption1>{formatDateTime(n.createdAtUtc)}</Caption1>
           </button>
         ))}
       </PopoverSurface>

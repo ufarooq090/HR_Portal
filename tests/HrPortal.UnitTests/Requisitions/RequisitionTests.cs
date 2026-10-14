@@ -181,6 +181,20 @@ public class RequisitionTests
         Assert.Throws<DomainValidationException>(() => new ApprovalChain("PK", [("CEO", a), ("Again", a)]));
         Assert.Equal("CEO", new ApprovalChain("PK", [("CEO", a)]).Steps.Single().Label);
     }
+
+    [Fact]
+    public void REQ_02_approval_chain_keeps_at_least_one_step()
+    {
+        var a = Employee.Create(new Person("A", "B"), "X1", "x1@b.co", EmploymentType.Permanent,
+            new JobPlacement("CEO", new LegalEntity("PK", "PK Ltd"), Lahore, Engineering, null), null, Today, new EmploymentTerms(0, 30));
+        var chain = new ApprovalChain("PK", [("CEO", a)]);
+
+        var error = Assert.Throws<DomainValidationException>(() => chain.Replace([]));
+
+        Assert.Equal("steps", error.Field);
+        Assert.Equal("An approval chain needs at least one step.", error.Message);
+        Assert.Equal("CEO", chain.Steps.Single().Label);
+    }
 }
 
 public class RequisitionRulesTests

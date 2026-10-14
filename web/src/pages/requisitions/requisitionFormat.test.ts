@@ -6,7 +6,7 @@ import { budgetRange, decisionColor, requisitionStatusColor, statusActionLabel }
 describe('requisitions', () => {
   it('MC-02: shows a budget range in one currency, never converted', () => {
     expect(budgetRange(2_000_000, 3_000_000, 'PKR')).toBe('PKR 2,000,000 – 3,000,000')
-    expect(budgetRange(90_000.5, 120_000, 'USD')).toBe('USD 90,000.5 – 120,000')
+    expect(budgetRange(90_000.5, 120_000, 'USD')).toBe('USD 90,001 – 120,000')
   })
 
   it('names the manual status actions', () => {

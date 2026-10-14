@@ -19,21 +19,20 @@ import { ApiError, saveFile } from '../../api/client'
 import { downloadDocument, useDeleteDocument, useDocuments, useUploadDocument } from '../../api/employees'
 import { type DocumentCategory, documentCategories, type EmployeeDetail } from '../../api/types'
 import { QueryError } from '../../app/QueryError'
-import { SelectField, TextField } from './fields'
-import { formatBytes, formatDate, label } from './format'
+import { DateField, SelectField } from './fields'
+import { formatBytes, formatDate, formatDateTime, label } from './format'
+import { fieldGrid, fieldGridActions, tableWrap } from '../../app/layout'
 
 const useStyles = makeStyles({
   section: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM },
   upload: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: tokens.spacingHorizontalM,
-    alignItems: 'end',
+    ...fieldGrid,
     padding: tokens.spacingHorizontalM,
     border: `1px solid ${tokens.colorNeutralStroke2}`,
     borderRadius: tokens.borderRadiusMedium,
   },
-  tableWrap: { overflowX: 'auto' },
+  tableWrap,
+  uploadActions: fieldGridActions,
   file: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXXS },
   error: { color: tokens.colorPaletteRedForeground1 },
 })
@@ -82,7 +81,7 @@ export function DocumentsTab({ employee }: { employee: EmployeeDetail }) {
                   <TableCell>{label(d.category)}</TableCell>
                   <TableCell>{formatBytes(d.sizeBytes)}</TableCell>
                   <TableCell>{formatDate(d.expiryDate)}</TableCell>
-                  <TableCell>{new Date(d.uploadedAtUtc).toLocaleString()}</TableCell>
+                  <TableCell>{formatDateTime(d.uploadedAtUtc)}</TableCell>
                   <TableCell>
                     <Button appearance="subtle" icon={<ArrowDownloadRegular />} aria-label={`Download ${d.fileName}`} onClick={() => void download(d.id)} />
                     {employee.permissions.canManageDocuments && (
@@ -159,8 +158,8 @@ function UploadForm({ employeeId }: { employeeId: string }) {
         onChange={(v) => setCategory(v as DocumentCategory)}
         options={documentCategories.map((c) => ({ value: c, label: label(c) }))}
       />
-      <TextField label="Expiry date" type="date" value={expiryDate} onChange={setExpiryDate} hint="Contracts, visas, certificates." />
-      <div>
+      <DateField label="Expiry date" value={expiryDate} onChange={setExpiryDate} hint="Contracts, visas, certificates." />
+      <div className={styles.uploadActions}>
         <Button type="submit" appearance="primary" icon={<ArrowUploadRegular />} disabled={!file || upload.isPending}>
           {upload.isPending ? 'Uploading…' : 'Upload'}
         </Button>

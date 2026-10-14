@@ -162,6 +162,11 @@ Keep this section up to date when commands change.
 - Ask before adding a new NuGet or npm dependency not listed in this file.
 - When a requirement is ambiguous, check `docs/requirements.md` ("Decisions and remaining
   questions"); if still unclear, ask rather than guess.
+- UI layout and formatting (checked by `e2e/tests/layout.spec.ts`: no page may scroll sideways at 1366px or 1920px):
+  lay out forms and filter bars with `fieldGrid` / `fieldGridActions` from `web/src/app/layout.ts`; wrap wide tables
+  in `tableWrap`; enter dates with `DateField`, never `<input type="date">`; show dates and money only through
+  `formatDate` / `formatDay` / `formatDateTime` / `formatMoney` (`pages/employees/format.ts`): "14 Oct 2026",
+  "PKR 2,400,000", never the browser's locale format.
 
 ## Open items (do not hard-code; leave configurable)
 
